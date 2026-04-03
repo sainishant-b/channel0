@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch Party UI Components - YouTube Style</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="showcase-container">
+    <!-- Header -->
+    <header class="yt-header">
+      <div class="header-left">
+        <button class="icon-btn menu-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+          </svg>
+        </button>
+        <div class="logo">
+          <span class="logo-icon">▶</span>
+          <span class="logo-text">WatchParty</span>
+        </div>
+      </div>
+      <div class="header-center">
+        <div class="search-container">
+          <input type="text" class="search-input" placeholder="Search">
+          <button class="search-btn">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M20.87 20.17l-5.59-5.59A6.956 6.956 0 0 0 17 10c0-3.87-3.13-7-7-7s-7 3.13-7 7 3.13 7 7 7c1.76 0 3.37-.65 4.58-1.72l5.59 5.59.7-.7zM10 16c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+          </svg>
+        </button>
+        <div class="avatar">A</div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Section: Typography -->
+      <section class="ui-section">
+        <h2 class="section-title">Typography</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h1 class="yt-h1">Heading 1 - Video Title</h1>
+            <h2 class="yt-h2">Heading 2 - Section Title</h2>
+            <h3 class="yt-h3">Heading 3 - Card Title</h3>
+            <h4 class="yt-h4">Heading 4 - Subtitle</h4>
+            <p class="yt-body">Body text - This is regular paragraph text used for descriptions and content. YouTube uses Roboto font family throughout.</p>
+            <p class="yt-body-secondary">Secondary text - Used for metadata, timestamps, and less important information.</p>
+            <span class="yt-caption">Caption text - Small labels and hints</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Buttons -->
+      <section class="ui-section">
+        <h2 class="section-title">Buttons</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Primary Buttons</h4>
+            <div class="button-row">
+              <button class="yt-btn-primary">Subscribe</button>
+              <button class="yt-btn-primary">Watch Now</button>
+              <button class="yt-btn-primary" disabled>Disabled</button>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Secondary Buttons</h4>
+            <div class="button-row">
+              <button class="yt-btn-secondary">Share</button>
+              <button class="yt-btn-secondary">Save</button>
+              <button class="yt-btn-secondary" disabled>Disabled</button>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Ghost/Text Buttons</h4>
+            <div class="button-row">
+              <button class="yt-btn-ghost">Cancel</button>
+              <button class="yt-btn-ghost">Learn more</button>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Icon Buttons</h4>
+            <div class="button-row">
+              <button class="icon-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </button>
+              <button class="icon-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+                </svg>
+              </button>
+              <button class="icon-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Chip/Tag Buttons</h4>
+            <div class="button-row">
+              <button class="yt-chip active">All</button>
+              <button class="yt-chip">Live</button>
+              <button class="yt-chip">Music</button>
+              <button class="yt-chip">Gaming</button>
+              <button class="yt-chip">News</button>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">YouTube Red Button (CTA)</h4>
+            <div class="button-row">
+              <button class="yt-btn-red">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="margin-right: 8px;">
+                  <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
+                </svg>
+                Watch on YouTube
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Form Elements -->
+      <section class="ui-section">
+        <h2 class="section-title">Form Elements</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Text Inputs</h4>
+            <input type="text" class="yt-input" placeholder="Enter your username">
+            <input type="text" class="yt-input" value="Filled input">
+            <input type="text" class="yt-input" placeholder="Disabled" disabled>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Textarea</h4>
+            <textarea class="yt-textarea" placeholder="Add a comment..." rows="3"></textarea>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Checkbox & Radio</h4>
+            <label class="yt-checkbox">
+              <input type="checkbox" checked>
+              <span class="checkmark"></span>
+              Enable notifications
+            </label>
+            <label class="yt-checkbox">
+              <input type="checkbox">
+              <span class="checkmark"></span>
+              Auto-sync playback
+            </label>
+            <div style="margin-top: 16px;">
+              <label class="yt-radio">
+                <input type="radio" name="theme" checked>
+                <span class="radiomark"></span>
+                Dark theme
+              </label>
+              <label class="yt-radio">
+                <input type="radio" name="theme">
+                <span class="radiomark"></span>
+                Light theme
+              </label>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Toggle Switch</h4>
+            <label class="yt-toggle">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Notifications enabled</span>
+            </label>
+            <label class="yt-toggle">
+              <input type="checkbox">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Auto-play next</span>
+            </label>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Select Dropdown</h4>
+            <select class="yt-select">
+              <option>Select quality</option>
+              <option>1080p</option>
+              <option>720p</option>
+              <option>480p</option>
+              <option>360p</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Cards -->
+      <section class="ui-section">
+        <h2 class="section-title">Cards</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Video Card</h4>
+            <div class="yt-video-card">
+              <div class="video-thumbnail">
+                <div class="thumbnail-placeholder">
+                  <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+                <span class="video-duration">12:34</span>
+              </div>
+              <div class="video-info">
+                <div class="channel-avatar">C</div>
+                <div class="video-meta">
+                  <h3 class="video-title">Amazing Video Title That Might Be Long</h3>
+                  <p class="channel-name">Channel Name</p>
+                  <p class="video-stats">125K views • 2 days ago</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Now Playing Card</h4>
+            <div class="now-playing-card">
+              <div class="live-badge">
+                <span class="live-dot"></span>
+                LIVE
+              </div>
+              <div class="np-thumbnail">
+                <div class="thumbnail-placeholder large">
+                  <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="np-info">
+                <h3 class="np-title">Currently Playing: Movie Night Marathon</h3>
+                <div class="np-meta">
+                  <span class="viewer-count">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                    47 watching
+                  </span>
+                  <span class="time-remaining">23:45 remaining</span>
+                </div>
+                <div class="progress-container">
+                  <div class="progress-bar">
+                    <div class="progress-fill" style="width: 65%;"></div>
+                  </div>
+                  <div class="progress-time">
+                    <span>15:32</span>
+                    <span>24:00</span>
+                  </div>
+                </div>
+                <button class="yt-btn-red watch-now-btn">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
+                  </svg>
+                  Watch Now on YouTube
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Schedule Card</h4>
+            <div class="schedule-card">
+              <div class="schedule-time">
+                <span class="time">8:00 PM</span>
+                <span class="countdown">in 2h 15m</span>
+              </div>
+              <div class="schedule-thumbnail">
+                <div class="thumbnail-placeholder small">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="schedule-info">
+                <h4 class="schedule-title">Evening Comedy Hour</h4>
+                <p class="schedule-duration">Duration: 45 min</p>
+              </div>
+              <button class="yt-btn-secondary remind-btn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                </svg>
+                Remind
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Chat Components -->
+      <section class="ui-section">
+        <h2 class="section-title">Chat Components</h2>
+        <div class="component-grid">
+          <div class="component-card full-width">
+            <h4 class="yt-h4">Chat Overlay Panel</h4>
+            <div class="chat-overlay-demo">
+              <div class="chat-header">
+                <div class="chat-header-left">
+                  <span class="chat-title">Watch Party Chat</span>
+                  <span class="chat-viewers">
+                    <span class="live-dot small"></span>
+                    47 watching
+                  </span>
+                </div>
+                <div class="chat-header-right">
+                  <button class="icon-btn small">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                    </svg>
+                  </button>
+                  <button class="icon-btn small">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="chat-messages">
+                <div class="sync-indicator">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                  </svg>
+                  You're synced at 15:32
+                </div>
+                <div class="chat-message">
+                  <span class="msg-avatar" style="background: #FF6B6B;">A</span>
+                  <div class="msg-content">
+                    <div class="msg-header">
+                      <span class="msg-username" style="color: #FF6B6B;">Alex</span>
+                      <span class="msg-time">2m ago</span>
+                    </div>
+                    <p class="msg-text">This part is hilarious! 😂</p>
+                  </div>
+                </div>
+                <div class="chat-message">
+                  <span class="msg-avatar" style="background: #4ECDC4;">S</span>
+                  <div class="msg-content">
+                    <div class="msg-header">
+                      <span class="msg-username" style="color: #4ECDC4;">Sarah_Watches</span>
+                      <span class="msg-time">1m ago</span>
+                    </div>
+                    <p class="msg-text">I know right! Can't believe they did that</p>
+                  </div>
+                </div>
+                <div class="chat-message">
+                  <span class="msg-avatar" style="background: #45B7D1;">M</span>
+                  <div class="msg-content">
+                    <div class="msg-header">
+                      <span class="msg-username" style="color: #45B7D1;">MovieBuff42</span>
+                      <span class="msg-time">30s ago</span>
+                    </div>
+                    <p class="msg-text">Wait for the next scene, it gets even better!</p>
+                  </div>
+                </div>
+                <div class="chat-message own">
+                  <span class="msg-avatar" style="background: #96CEB4;">Y</span>
+                  <div class="msg-content">
+                    <div class="msg-header">
+                      <span class="msg-username" style="color: #96CEB4;">You</span>
+                      <span class="msg-time">Just now</span>
+                    </div>
+                    <p class="msg-text">First time watching this, loving it so far!</p>
+                  </div>
+                </div>
+              </div>
+              <div class="chat-input-area">
+                <div class="chat-user-info">
+                  <span class="current-user">Chatting as <strong>You</strong></span>
+                  <button class="yt-btn-ghost small">Change</button>
+                </div>
+                <div class="chat-input-container">
+                  <input type="text" class="chat-input" placeholder="Send a message...">
+                  <span class="char-count">0/300</span>
+                  <button class="send-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Status & Indicators -->
+      <section class="ui-section">
+        <h2 class="section-title">Status & Indicators</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Badges</h4>
+            <div class="badge-row">
+              <span class="yt-badge live">LIVE</span>
+              <span class="yt-badge upcoming">UPCOMING</span>
+              <span class="yt-badge new">NEW</span>
+              <span class="yt-badge">PREMIERE</span>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Connection Status</h4>
+            <div class="status-row">
+              <span class="connection-status connected">
+                <span class="status-dot"></span>
+                Connected
+              </span>
+              <span class="connection-status reconnecting">
+                <span class="status-dot"></span>
+                Reconnecting...
+              </span>
+              <span class="connection-status disconnected">
+                <span class="status-dot"></span>
+                Disconnected
+              </span>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Sync Status</h4>
+            <div class="sync-status synced">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+              </svg>
+              Synced
+            </div>
+            <div class="sync-status out-of-sync">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
+              15 seconds behind
+              <button class="yt-btn-ghost small">Sync Now</button>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Progress Bars</h4>
+            <div class="progress-demo">
+              <label class="yt-caption">Video Progress</label>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 45%;"></div>
+              </div>
+            </div>
+            <div class="progress-demo">
+              <label class="yt-caption">Buffer Progress</label>
+              <div class="progress-bar buffered">
+                <div class="progress-buffer" style="width: 70%;"></div>
+                <div class="progress-fill" style="width: 45%;"></div>
+              </div>
+            </div>
+            <div class="progress-demo">
+              <label class="yt-caption">Loading</label>
+              <div class="progress-bar loading">
+                <div class="progress-fill indeterminate"></div>
+              </div>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Tooltips</h4>
+            <div class="tooltip-demo">
+              <button class="icon-btn" data-tooltip="Like this video">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/>
+                </svg>
+              </button>
+              <span class="tooltip">Like this video</span>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Loaders</h4>
+            <div class="loader-row">
+              <div class="yt-spinner"></div>
+              <div class="yt-dots">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Notifications & Alerts -->
+      <section class="ui-section">
+        <h2 class="section-title">Notifications & Alerts</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Toast Notifications</h4>
+            <div class="toast-demo">
+              <div class="yt-toast success">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                Message sent successfully
+              </div>
+              <div class="yt-toast error">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                Failed to send message
+              </div>
+              <div class="yt-toast info">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+                Show starting in 5 minutes
+              </div>
+              <div class="yt-toast warning">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                </svg>
+                You're out of sync
+              </div>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Alert Banners</h4>
+            <div class="yt-alert info">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+              <span>Next show starts at 8:00 PM. <a href="#">Set a reminder</a></span>
+            </div>
+            <div class="yt-alert warning">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
+              <span>Connection unstable. Messages may be delayed.</span>
+            </div>
+            <div class="yt-alert error">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+              </svg>
+              <span>This video is no longer available.</span>
+              <button class="yt-btn-ghost small">Skip to next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Modals & Dialogs -->
+      <section class="ui-section">
+        <h2 class="section-title">Modals & Dialogs</h2>
+        <div class="component-grid">
+          <div class="component-card full-width">
+            <h4 class="yt-h4">Username Dialog</h4>
+            <div class="modal-demo">
+              <div class="yt-modal">
+                <div class="modal-header">
+                  <h3>Set your username</h3>
+                  <button class="icon-btn small">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="modal-body">
+                  <p class="yt-body-secondary">Choose a username to display in chat. You can change this anytime.</p>
+                  <input type="text" class="yt-input" placeholder="Enter username" value="CoolViewer42">
+                  <p class="yt-caption">3-20 characters, letters, numbers, and underscores only</p>
+                </div>
+                <div class="modal-footer">
+                  <button class="yt-btn-ghost">Cancel</button>
+                  <button class="yt-btn-primary">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Scrollable Areas -->
+      <section class="ui-section">
+        <h2 class="section-title">Scrollable Areas</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Custom Scrollbar (YouTube Style)</h4>
+            <div class="scroll-demo">
+              <div class="scroll-content">
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+                <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+                <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.</p>
+                <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</p>
+              </div>
+            </div>
+          </div>
+          <div class="component-card">
+            <h4 class="yt-h4">Horizontal Scroll (Chips)</h4>
+            <div class="horizontal-scroll-demo">
+              <button class="yt-chip active">All</button>
+              <button class="yt-chip">Live</button>
+              <button class="yt-chip">Music</button>
+              <button class="yt-chip">Gaming</button>
+              <button class="yt-chip">News</button>
+              <button class="yt-chip">Sports</button>
+              <button class="yt-chip">Learning</button>
+              <button class="yt-chip">Fashion</button>
+              <button class="yt-chip">Podcasts</button>
+              <button class="yt-chip">Recently uploaded</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Extension Popup Preview -->
+      <section class="ui-section">
+        <h2 class="section-title">Extension Popup Preview</h2>
+        <div class="component-grid">
+          <div class="component-card">
+            <h4 class="yt-h4">Popup UI (360x500)</h4>
+            <div class="popup-preview">
+              <div class="popup-header">
+                <div class="popup-logo">
+                  <span class="logo-icon small">▶</span>
+                  <span>Watch Party</span>
+                </div>
+                <button class="icon-btn small">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="popup-live-section">
+                <div class="live-badge popup">
+                  <span class="live-dot"></span>
+                  LIVE NOW
+                </div>
+                <div class="popup-now-playing">
+                  <div class="popup-thumbnail">
+                    <div class="thumbnail-placeholder">
+                      <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="popup-show-info">
+                    <h3 class="popup-show-title">Movie Night Marathon</h3>
+                    <p class="popup-show-meta">47 watching • 23:45 left</p>
+                    <div class="popup-progress">
+                      <div class="progress-bar small">
+                        <div class="progress-fill" style="width: 65%;"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button class="yt-btn-red full-width">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  Watch Now
+                </button>
+              </div>
+              <div class="popup-schedule-section">
+                <h4 class="popup-section-title">Coming Up</h4>
+                <div class="popup-schedule-list">
+                  <div class="popup-schedule-item">
+                    <div class="popup-schedule-time">
+                      <span class="time">8:00 PM</span>
+                      <span class="relative">in 2h</span>
+                    </div>
+                    <div class="popup-schedule-info">
+                      <span class="title">Evening Comedy Hour</span>
+                      <span class="duration">45 min</span>
+                    </div>
+                    <button class="icon-btn tiny">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="popup-schedule-item">
+                    <div class="popup-schedule-time">
+                      <span class="time">9:00 PM</span>
+                      <span class="relative">in 3h</span>
+                    </div>
+                    <div class="popup-schedule-info">
+                      <span class="title">Documentary Night</span>
+                      <span class="duration">1h 30min</span>
+                    </div>
+                    <button class="icon-btn tiny">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="popup-footer">
+                <a href="#" class="popup-link">View full schedule</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

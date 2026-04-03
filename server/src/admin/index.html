@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch Party Admin</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f0f;
+      --bg-secondary: #272727;
+      --bg-tertiary: #3f3f3f;
+      --text-primary: #f1f1f1;
+      --text-secondary: #aaaaaa;
+      --yt-red: #ff0000;
+      --yt-blue: #3ea6ff;
+      --yt-green: #2ba640;
+      --border-color: #303030;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', 'Arial', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 28px;
+      background: var(--yt-red);
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    h1 { font-size: 24px; font-weight: 500; }
+    .current-time { font-size: 14px; color: var(--text-secondary); }
+    .current-time span { color: var(--yt-blue); font-family: monospace; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <div class="logo">▶</div>
+        <h1>Watch Party Admin</h1>
+      </div>
+      <div class="current-time">Current Time: <span id="clock">--:--:--</span></div>
+    </header>
+    <div id="app"></div>
+  </div>
+  <div id="toast" class="toast"></div>
+</body>
+</html>
+
+<style>
+    .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+    
+    .now-playing-section { background: var(--bg-secondary); border-radius: 12px; overflow: hidden; }
+    .video-container { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
+    .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+    .video-placeholder {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: var(--text-secondary);
+    }
+    .video-placeholder svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.5; }
+    
+    .video-info { padding: 16px; }
+    .video-info-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; font-size: 12px; font-weight: 500;
+      color: white; background: var(--yt-red); border-radius: 4px;
+    }
+    .live-dot { width: 6px; height: 6px; background: white; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    
+    .video-title { font-size: 18px; font-weight: 500; margin-bottom: 12px; }
+    .video-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+    .video-meta .highlight { color: var(--yt-blue); font-family: monospace; }
+    
+    .progress-bar { height: 4px; background: var(--bg-tertiary); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
+    .progress-fill { height: 100%; background: var(--yt-red); transition: width 1s linear; }
+    
+    .time-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .time-box { padding: 12px; background: var(--bg-primary); border-radius: 8px; text-align: center; }
+    .time-box-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px; }
+    .time-box-value { font-size: 16px; font-family: monospace; color: var(--yt-blue); }
+    
+    .video-actions { display: flex; gap: 12px; }
+    
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .add-section, .queue-section { background: var(--bg-secondary); padding: 16px; border-radius: 12px; }
+    .section-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab { padding: 8px 16px; font-size: 13px; background: var(--bg-primary); border: none; border-radius: 20px; color: var(--text-secondary); cursor: pointer; }
+    .tab.active { background: var(--yt-blue); color: var(--bg-primary); }
+    
+    .input-group { margin-bottom: 12px; }
+    .input-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    input[type="text"] {
+      width: 100%; height: 40px; padding: 0 12px;
+      font-family: inherit; font-size: 14px; color: var(--text-primary);
+      background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--yt-blue); }
+    input[type="text"]::placeholder { color: var(--text-secondary); }
+    
+    .btn {
+      height: 36px; padding: 0 16px; font-family: inherit; font-size: 13px; font-weight: 500;
+      border: none; border-radius: 18px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--yt-blue); color: var(--bg-primary); }
+    .btn-primary:hover { background: #65b8ff; }
+    .btn-danger { background: var(--yt-red); color: white; }
+    .btn-danger:hover { background: #cc0000; }
+    .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+    .btn-secondary:hover { background: #4f4f4f; }
+    .btn-small { height: 28px; padding: 0 10px; font-size: 11px; }
+    .btn-full { width: 100%; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<style>
+    .queue-list { display: flex; flex-direction: column; gap: 6px; max-height: 350px; overflow-y: auto; }
+    .queue-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px;
+      background: var(--bg-primary); border-radius: 6px; transition: background 0.2s;
+    }
+    .queue-item:hover { background: var(--bg-tertiary); }
+    .queue-item.current { border: 2px solid var(--yt-red); }
+    .queue-item .index {
+      width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+      background: var(--bg-tertiary); border-radius: 4px; font-size: 10px; font-weight: 500; flex-shrink: 0;
+    }
+    .queue-item.current .index { background: var(--yt-red); }
+    .queue-item .thumbnail { width: 56px; height: 32px; border-radius: 4px; overflow: hidden; background: var(--bg-tertiary); flex-shrink: 0; }
+    .queue-item .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+    .queue-item .info { flex: 1; min-width: 0; }
+    .queue-item .title { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .queue-item .duration { font-size: 10px; color: var(--text-secondary); }
+    .queue-item .remove-btn {
+      width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: 50%; color: var(--text-secondary);
+      cursor: pointer; opacity: 0; transition: all 0.2s;
+    }
+    .queue-item:hover .remove-btn { opacity: 1; }
+    .queue-item .remove-btn:hover { background: var(--yt-red); color: white; }
+    
+    .empty-state { text-align: center; padding: 24px 16px; color: var(--text-secondary); }
+    .empty-state svg { width: 40px; height: 40px; margin-bottom: 8px; opacity: 0.5; }
+    .empty-state p { font-size: 12px; }
+    
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; background: var(--bg-tertiary); color: var(--text-primary);
+      border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; z-index: 1000;
+    }
+    .toast.show { opacity: 1; }
+    .toast.success { background: var(--yt-green); }
+    .toast.error { background: var(--yt-red); }
+    
+    .queue-summary { padding: 12px; background: var(--bg-primary); border-radius: 8px; margin-bottom: 12px; font-size: 12px; }
+    .queue-summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .queue-summary-row:last-child { margin-bottom: 0; }
+    .queue-summary-row span:last-child { color: var(--yt-blue); font-family: monospace; }
+</style>
+
+<script>
+const API_BASE = '/api/admin';
+let currentQueue = [];
+let currentVideoId = null;
+let currentData = null;
+let activeTab = 'video';
+
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+  refreshData();
+  setInterval(refreshData, 1000);
+  setInterval(updateClock, 1000);
+  updateClock();
+});
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+async function refreshData() {
+  try {
+    const [queueRes, currentRes] = await Promise.all([
+      fetch(`${API_BASE}/queue`),
+      fetch(`${API_BASE}/current`)
+    ]);
+    const queueData = await queueRes.json();
+    currentData = await currentRes.json();
+    currentQueue = queueData.queue || [];
+    currentVideoId = queueData.currentVideoId;
+    updateUI();
+  } catch (err) {
+    console.error('Failed to fetch data:', err);
+  }
+}
+
+function render() {
+  document.getElementById('app').innerHTML = `
+    <div class="main-grid">
+      <div class="now-playing-section">
+        <div class="video-container">
+          <div id="video-placeholder" class="video-placeholder">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
+            <p>No video playing</p>
+          </div>
+          <iframe id="video-player" style="display: none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+        <div class="video-info">
+          <div class="video-info-header">
+            <span id="live-badge" class="live-badge" style="display: none;"><span class="live-dot"></span> NOW PLAYING</span>
+          </div>
+          <h2 id="video-title" class="video-title">No video playing</h2>
+          <div class="video-meta">
+            <span>Progress: <span id="timestamp" class="highlight">0:00 / 0:00</span></span>
+            <span>ID: <span id="video-id">-</span></span>
+          </div>
+          <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width: 0%"></div></div>
+          <div class="time-info">
+            <div class="time-box"><div class="time-box-label">Current Video Ends</div><div id="current-end" class="time-box-value">--:--</div></div>
+            <div class="time-box"><div class="time-box-label">Queue Ends</div><div id="queue-end" class="time-box-value">--:--</div></div>
+            <div class="time-box"><div class="time-box-label">Total Remaining</div><div id="total-remaining" class="time-box-value">--:--</div></div>
+          </div>
+          <div class="video-actions">
+            <button class="btn btn-secondary" onclick="skipCurrent()" id="skip-btn" disabled>Skip →</button>
+            <button class="btn btn-secondary" onclick="openOnYouTube()" id="youtube-btn" disabled>Open on YouTube</button>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="add-section">
+          <div class="section-title">Add Content</div>
+          <div class="tabs">
+            <button class="tab ${activeTab === 'video' ? 'active' : ''}" onclick="setTab('video')">Video</button>
+            <button class="tab ${activeTab === 'playlist' ? 'active' : ''}" onclick="setTab('playlist')">Playlist</button>
+          </div>
+          <div id="add-form"></div>
+        </div>
+        <div class="queue-section">
+          <div class="section-title"><span>Queue</span><button class="btn btn-danger btn-small" onclick="clearQueue()">Clear</button></div>
+          <div id="queue-summary" class="queue-summary"></div>
+          <div id="queue-list" class="queue-list"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  renderAddForm();
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${tab === 'video' ? 1 : 2})`).classList.add('active');
+  renderAddForm();
+}
+</script>
+
+<script>
+function renderAddForm() {
+  const form = document.getElementById('add-form');
+  if (activeTab === 'video') {
+    form.innerHTML = `
+      <div class="input-group">
+        <label>YouTube URL or Video ID</label>
+        <input type="text" id="video-url" placeholder="https://youtube.com/watch?v=..." onkeypress="if(event.key==='Enter')addVideo()">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="addVideo()" id="add-btn">Add Video</button>
+    `;
+  } else {
+    form.innerHTML = `
+      <div class="input-group">
+        <label>YouTube Playlist URL</label>
+        <input type="text" id="playlist-url" placeholder="https://youtube.com/playlist?list=..." onkeypress="if(event.key==='Enter')addPlaylist()">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="addPlaylist()" id="add-playlist-btn">Import Playlist</button>
+    `;
+  }
+}
+
+function updateUI() {
+  const show = currentData?.current;
+  const timestamp = currentData?.timestamp || 0;
+  
+  const placeholder = document.getElementById('video-placeholder');
+  const player = document.getElementById('video-player');
+  const liveBadge = document.getElementById('live-badge');
+  const titleEl = document.getElementById('video-title');
+  const timestampEl = document.getElementById('timestamp');
+  const videoIdEl = document.getElementById('video-id');
+  const progressFill = document.getElementById('progress-fill');
+  const skipBtn = document.getElementById('skip-btn');
+  const youtubeBtn = document.getElementById('youtube-btn');
+  const currentEndEl = document.getElementById('current-end');
+  const queueEndEl = document.getElementById('queue-end');
+  const totalRemainingEl = document.getElementById('total-remaining');
+
+  if (!show) {
+    placeholder.style.display = 'flex';
+    player.style.display = 'none';
+    liveBadge.style.display = 'none';
+    titleEl.textContent = 'No video playing';
+    timestampEl.textContent = '0:00 / 0:00';
+    videoIdEl.textContent = '-';
+    progressFill.style.width = '0%';
+    skipBtn.disabled = true;
+    youtubeBtn.disabled = true;
+    currentEndEl.textContent = '--:--';
+    queueEndEl.textContent = '--:--';
+    totalRemainingEl.textContent = '--:--';
+    currentVideoId = null;
+  } else {
+    if (currentVideoId !== show.videoId) {
+      currentVideoId = show.videoId;
+      // Disable autoplay and set playback to normal speed
+      player.src = `https://www.youtube.com/embed/${show.videoId}?start=${Math.floor(timestamp)}&autoplay=0&controls=1&modestbranding=1`;
+      placeholder.style.display = 'none';
+      player.style.display = 'block';
+    }
+    liveBadge.style.display = 'inline-flex';
+    titleEl.textContent = show.title;
+    timestampEl.textContent = `${formatTime(timestamp)} / ${formatTime(show.duration)}`;
+    videoIdEl.textContent = show.videoId;
+    progressFill.style.width = `${Math.min((timestamp / show.duration) * 100, 100)}%`;
+    skipBtn.disabled = false;
+    youtubeBtn.disabled = false;
+    
+    // Time displays
+    if (currentData.currentEndTime) {
+      currentEndEl.textContent = new Date(currentData.currentEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+    if (currentData.allEndTime) {
+      queueEndEl.textContent = new Date(currentData.allEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      const totalSecs = Math.floor((currentData.allEndTime - Date.now()) / 1000);
+      totalRemainingEl.textContent = formatTime(Math.max(0, totalSecs));
+    }
+  }
+  
+  renderQueue();
+  renderQueueSummary();
+}
+
+function renderQueueSummary() {
+  const summary = document.getElementById('queue-summary');
+  const totalDuration = currentQueue.reduce((sum, item) => sum + item.duration, 0);
+  const currentRemaining = currentData?.current ? (currentData.current.duration - (currentData.timestamp || 0)) : 0;
+  
+  summary.innerHTML = `
+    <div class="queue-summary-row"><span>Videos in queue:</span><span>${currentQueue.length}</span></div>
+    <div class="queue-summary-row"><span>Total duration:</span><span>${formatTime(totalDuration)}</span></div>
+  `;
+}
+
+function renderQueue() {
+  const container = document.getElementById('queue-list');
+  if (currentQueue.length === 0) {
+    container.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg><p>Queue is empty</p></div>`;
+    return;
+  }
+  container.innerHTML = currentQueue.map((item, i) => `
+    <div class="queue-item ${item.videoId === currentVideoId ? 'current' : ''}">
+      <div class="index">${i + 1}</div>
+      <div class="thumbnail"><img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" alt=""></div>
+      <div class="info"><div class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div><div class="duration">${formatTime(item.duration)}</div></div>
+      ${item.videoId !== currentVideoId ? `<button class="remove-btn" onclick="removeVideo('${item.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>` : ''}
+    </div>
+  `).join('');
+}
+</script>
+
+<script>
+async function addVideo() {
+  const urlInput = document.getElementById('video-url');
+  const addBtn = document.getElementById('add-btn');
+  const videoUrl = urlInput.value.trim();
+  if (!videoUrl) { showToast('Enter a YouTube URL', 'error'); return; }
+  
+  addBtn.innerHTML = '<span class="loading-spinner"></span>Adding...';
+  addBtn.disabled = true;
+  
+  try {
+    const res = await fetch(`${API_BASE}/queue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoUrl }),
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast(`Added: ${data.show.title}`, 'success');
+    urlInput.value = '';
+    refreshData();
+  } catch (err) {
+    showToast('Failed to add video', 'error');
+  } finally {
+    addBtn.innerHTML = 'Add Video';
+    addBtn.disabled = false;
+  }
+}
+
+async function addPlaylist() {
+  const urlInput = document.getElementById('playlist-url');
+  const addBtn = document.getElementById('add-playlist-btn');
+  const playlistUrl = urlInput.value.trim();
+  if (!playlistUrl) { showToast('Enter a playlist URL', 'error'); return; }
+  
+  addBtn.innerHTML = '<span class="loading-spinner"></span>Importing...';
+  addBtn.disabled = true;
+  
+  try {
+    const res = await fetch(`${API_BASE}/playlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playlistUrl }),
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast(`Added ${data.count} videos from playlist`, 'success');
+    urlInput.value = '';
+    refreshData();
+  } catch (err) {
+    showToast('Failed to import playlist', 'error');
+  } finally {
+    addBtn.innerHTML = 'Import Playlist';
+    addBtn.disabled = false;
+  }
+}
+
+async function removeVideo(showId) {
+  try {
+    const res = await fetch(`${API_BASE}/queue/${showId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast('Removed', 'success');
+    refreshData();
+  } catch (err) { showToast('Failed to remove', 'error'); }
+}
+
+async function skipCurrent() {
+  try {
+    await fetch(`${API_BASE}/skip`, { method: 'POST' });
+    showToast('Skipped', 'success');
+    currentVideoId = null;
+    refreshData();
+  } catch (err) { showToast('Failed to skip', 'error'); }
+}
+
+async function clearQueue() {
+  if (!confirm('Clear entire queue?')) return;
+  try {
+    await fetch(`${API_BASE}/queue`, { method: 'DELETE' });
+    showToast('Queue cleared', 'success');
+    currentVideoId = null;
+    refreshData();
+  } catch (err) { showToast('Failed to clear', 'error'); }
+}
+
+function openOnYouTube() {
+  if (currentVideoId && currentData?.timestamp) {
+    window.open(`https://www.youtube.com/watch?v=${currentVideoId}&t=${Math.floor(currentData.timestamp)}`, '_blank');
+  }
+}
+
+function formatTime(secs) {
+  if (!secs || secs < 0) return '0:00';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `toast show ${type}`;
+  setTimeout(() => { toast.className = 'toast'; }, 3000);
+}
+</script>

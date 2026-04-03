@@ -1,0 +1,355 @@
+/* ============================================
+   Watch Party Options Page Styles
+   ============================================ */
+
+:root {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #272727;
+  --bg-tertiary: #3f3f3f;
+  --bg-elevated: #212121;
+  --text-primary: #f1f1f1;
+  --text-secondary: #aaaaaa;
+  --yt-red: #ff0000;
+  --yt-blue: #3ea6ff;
+  --yt-green: #2ba640;
+  --border-color: #303030;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Roboto', 'Arial', sans-serif;
+  font-size: 14px;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ============================================
+   Container
+   ============================================ */
+
+.options-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   Header
+   ============================================ */
+
+.options-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 100;
+}
+
+.header-content {
+  padding: 16px 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 22px;
+  background: var(--yt-red);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* ============================================
+   Main Content
+   ============================================ */
+
+.options-main {
+  padding: 24px;
+}
+
+/* ============================================
+   Settings Sections
+   ============================================ */
+
+.settings-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  animation: slideIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.settings-section:nth-child(1) { animation-delay: 0.05s; }
+.settings-section:nth-child(2) { animation-delay: 0.1s; }
+.settings-section:nth-child(3) { animation-delay: 0.15s; }
+.settings-section:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ============================================
+   Setting Items
+   ============================================ */
+
+.setting-item {
+  margin-bottom: 20px;
+}
+
+.setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.setting-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.setting-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+/* Input */
+.setting-input {
+  width: 100%;
+  max-width: 300px;
+  height: 40px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.setting-input:focus {
+  border-color: var(--yt-blue);
+  box-shadow: 0 0 0 2px rgba(62, 166, 255, 0.2);
+}
+
+.setting-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Select */
+.setting-select {
+  width: 100%;
+  max-width: 300px;
+  height: 40px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23aaaaaa'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.2s;
+}
+
+.setting-select:focus {
+  border-color: var(--yt-blue);
+}
+
+.setting-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Toggle Switch */
+.toggle-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.toggle-label {
+  font-size: 14px;
+}
+
+.toggle-setting input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 36px;
+  height: 14px;
+  background: var(--text-secondary);
+  border-radius: 7px;
+  transition: background 0.2s;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -3px;
+  width: 20px;
+  height: 20px;
+  background: #fafafa;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.toggle-setting input:checked + .toggle-slider {
+  background: rgba(62, 166, 255, 0.5);
+}
+
+.toggle-setting input:checked + .toggle-slider::after {
+  transform: translateX(20px);
+  background: var(--yt-blue);
+}
+
+.toggle-setting input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Range Slider */
+.range-setting {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.range-setting input[type="range"] {
+  flex: 1;
+  max-width: 250px;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.range-setting input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--yt-blue);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.range-setting input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.range-value {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 50px;
+}
+
+/* ============================================
+   Save Section
+   ============================================ */
+
+.save-section {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+
+.save-btn {
+  height: 40px;
+  padding: 0 24px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--bg-primary);
+  background: var(--text-primary);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.save-btn:hover {
+  background: #d9d9d9;
+  transform: scale(1.02);
+}
+
+.save-btn:active {
+  transform: scale(0.98);
+}
+
+.save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.save-btn.saved {
+  background: var(--yt-green);
+  color: white;
+}
+
+/* ============================================
+   About Section
+   ============================================ */
+
+.about-section {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.about-section a {
+  color: var(--yt-blue);
+  text-decoration: none;
+}
+
+.about-section a:hover {
+  text-decoration: underline;
+}

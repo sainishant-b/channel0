@@ -1,0 +1,29 @@
+{
+  "channels": [
+    {
+      "id": "main",
+      "name": "Main Channel",
+      "description": "Your daily watch party programming",
+      "schedule": [
+        {
+          "id": "show_1772001878202_spbeowywu",
+          "videoId": "nPbJoQp-zAU",
+          "title": "Why You Feel Almost Free — But Not At Rest",
+          "duration": 124,
+          "startTime": "2026-02-25T06:44:53.174Z",
+          "endTime": "2026-02-25T06:46:57.174Z",
+          "recurring": false
+        },
+        {
+          "id": "show_1772001893174_vofz89opl",
+          "videoId": "oxJkmaI98LY",
+          "title": "The Real Reason You Need to Train Legs (Not What You Think)",
+          "duration": 496,
+          "startTime": "2026-02-25T06:44:53.175Z",
+          "endTime": "2026-02-25T06:53:09.175Z",
+          "recurring": false
+        }
+      ]
+    }
+  ]
+}

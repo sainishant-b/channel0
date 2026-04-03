@@ -1,0 +1,12 @@
+Icon files needed:
+- icon16.png (16x16)
+- icon48.png (48x48)
+- icon128.png (128x128)
+
+These should be created with a design tool.
+For now, you can use placeholder images or generate them.
+
+Suggested design:
+- Red rounded rectangle background (YouTube style)
+- White play triangle icon
+- Simple and recognizable at small sizes
