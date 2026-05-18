@@ -1,28 +1,67 @@
+// Polyfills the Appwrite Web SDK needs to run inside an MV3 service
+// worker. The SDK's Realtime client references `window`, `localStorage`,
+// and `sessionStorage`; SWs only have `self`. We map `window` to
+// `globalThis` and provide in-memory `*Storage` stubs since SDK
+// only uses them for non-essential caching.
+const swGlobal = globalThis as Record<string, unknown>;
+
+if (typeof swGlobal.window === 'undefined') {
+  swGlobal.window = globalThis;
+}
+
+function createMemoryStorage(): Storage {
+  const data = new Map<string, string>();
+  return {
+    get length() { return data.size; },
+    clear: () => data.clear(),
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => { data.set(k, String(v)); },
+    removeItem: (k: string) => { data.delete(k); },
+    key: (i: number) => Array.from(data.keys())[i] ?? null,
+  };
+}
+
+if (typeof swGlobal.localStorage === 'undefined') {
+  swGlobal.localStorage = createMemoryStorage();
+}
+if (typeof swGlobal.sessionStorage === 'undefined') {
+  swGlobal.sessionStorage = createMemoryStorage();
+}
+
 import { ALARMS, TIMING } from '@shared/constants';
-import { getUserId, getUsername, setUsername, getSettings, getActiveSession, saveActiveSession, clearActiveSession } from '@shared/storage';
-import { apiClient } from '@shared/api-client';
-import { wsClient } from './websocket-client';
-import { notificationManager } from './notification-manager';
+import {
+  getUserId,
+  getUsername,
+  setUsername,
+  getSettings,
+  getActiveSession,
+  saveActiveSession,
+  clearActiveSession,
+} from '@shared/storage';
+import { appwriteClient } from '@shared/api-client';
+import { realtimeClient } from './websocket-client';
 import { authService } from './auth-service';
-import type { ChatMessage, Show } from '@shared/types';
-import type { 
-  ContentToBackgroundMessage, 
-  CheckScheduledResponse, 
-  GetScheduleResponse, 
-  GetUsernameResponse,
+import { extractVideoId, fetchVideoTitle } from '@shared/youtube-helpers';
+import type { ChatMessage, WatchPartySession, ChannelDoc, PlaylistItem } from '@shared/types';
+import type {
+  ContentToBackgroundMessage,
   BackgroundToContentMessage,
   HostChannelResponse,
   JoinChannelResponse,
-  SessionStatusResponse 
+  SessionStatusResponse,
+  GetUsernameResponse,
+  PlaylistResponse,
+  MutationResponse,
+  OwnedChannelsResponse,
+  EnterChannelResponse,
 } from '@shared/message-types';
-import type { WatchPartySession } from '@shared/types';
 
 // ============================================
 // State
 // ============================================
 
 let cachedMessages: ChatMessage[] = [];
-let currentLiveShow: Show | null = null;
+let activeChannel: ChannelDoc | null = null;
 
 // ============================================
 // Extension Lifecycle
@@ -30,110 +69,66 @@ let currentLiveShow: Show | null = null;
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[WatchParty] Extension installed:', details.reason);
-  
-  if (details.reason === 'install') {
-    const odId = await getUserId();
-    console.log('[WatchParty] Generated user ID:', odId);
-  }
-  
+  const userId = await getUserId();
+  console.log('[WatchParty] User ID:', userId);
   setupAlarms();
-  initializeWebSocket();
+  await ensureAppwriteSession();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
   console.log('[WatchParty] Extension started');
   setupAlarms();
-  initializeWebSocket();
+  await ensureAppwriteSession();
+  // Reattach realtime subscription if a session is active
+  const session = await getActiveSession();
+  if (session) {
+    await rejoinChannel(session.channelId);
+  }
 });
 
-// ============================================
-// WebSocket Initialization
-// ============================================
-
-function initializeWebSocket(): void {
-  console.log('[WatchParty] Initializing WebSocket...');
-  
-  wsClient.connect({
-    onMessage: handleIncomingMessage,
-    onUserCount: handleUserCount,
-    onSync: handleSync,
-    onConnectionChange: handleConnectionChange,
-    onHistory: handleHistory,
-    onError: handleWSError,
-    onVideoChange: handleVideoChange,
-  });
-}
-
-function handleIncomingMessage(message: ChatMessage): void {
-  console.log('[WatchParty] New message from:', message.username);
-  cachedMessages.push(message);
-  
-  // Keep only last 200 messages
-  if (cachedMessages.length > 200) {
-    cachedMessages = cachedMessages.slice(-200);
+/**
+ * Make sure an Appwrite session is alive on every service-worker boot.
+ * Service workers can be killed and respawned at any time, and the
+ * Appwrite SDK keeps its session in cookies that the SW process can read.
+ * Calling `ensureSession` is cheap when already authenticated.
+ */
+async function ensureAppwriteSession(): Promise<void> {
+  try {
+    await authService.ensureSession();
+  } catch (err) {
+    console.error('[WatchParty] Failed to ensure Appwrite session:', err);
   }
-  
-  // Broadcast to content scripts
-  broadcastToYouTubeTabs({
-    type: 'NEW_MESSAGE',
-    message,
-  });
 }
 
-function handleUserCount(showId: string, count: number): void {
-  
-  // Update badge
-  if (count > 0) {
-    updateBadge(count.toString(), '#FF0000');
-  } else {
-    clearBadge();
+// Fire-and-forget at top-of-file so the session is ready even when
+// neither onInstalled nor onStartup fires (e.g. SW woken by a message
+// after Chrome's idle eviction).
+void ensureAppwriteSession();
+
+// ============================================
+// Toolbar click → open the dashboard tab
+// ============================================
+//
+// The extension uses a full-page dashboard instead of a popup. Clicking
+// the toolbar icon opens (or focuses) a single dashboard tab so we
+// never leave the user with five stale copies of the UI.
+const DASHBOARD_URL = chrome.runtime.getURL('src/popup/popup.html');
+
+chrome.action.onClicked.addListener(async () => {
+  try {
+    const existing = await chrome.tabs.query({ url: DASHBOARD_URL });
+    if (existing.length > 0 && existing[0].id !== undefined) {
+      await chrome.tabs.update(existing[0].id, { active: true });
+      if (existing[0].windowId !== undefined) {
+        await chrome.windows.update(existing[0].windowId, { focused: true });
+      }
+      return;
+    }
+    await chrome.tabs.create({ url: DASHBOARD_URL });
+  } catch (err) {
+    console.error('[WatchParty] Failed to open dashboard:', err);
   }
-  
-  // Broadcast to content scripts
-  broadcastToYouTubeTabs({
-    type: 'USER_COUNT_UPDATE',
-    count,
-    showId,
-  });
-}
-
-function handleSync(showId: string, timestamp: number): void {
-  broadcastToYouTubeTabs({
-    type: 'SYNC_UPDATE',
-    timestamp,
-    showId,
-  });
-}
-
-function handleConnectionChange(status: 'connected' | 'connecting' | 'reconnecting' | 'disconnected'): void {
-  console.log('[WatchParty] Connection status:', status);
-  
-  broadcastToYouTubeTabs({
-    type: 'CONNECTION_STATUS',
-    status: status === 'connecting' ? 'reconnecting' : status,
-  });
-}
-
-function handleHistory(messages: ChatMessage[]): void {
-  console.log('[WatchParty] Received history:', messages.length, 'messages');
-  cachedMessages = messages;
-}
-
-function handleWSError(error: string): void {
-  console.error('[WatchParty] WebSocket error:', error);
-}
-
-function handleVideoChange(videoId: string, timestamp: number): void {
-  console.log('[WatchParty] Video changed to:', videoId, 'at timestamp:', timestamp);
-  
-  // Only navigate tabs that are currently watching a scheduled video
-  // (i.e., tabs where the content script has the overlay active)
-  broadcastToYouTubeTabs({
-    type: 'NAVIGATE_TO_VIDEO',
-    videoId,
-    timestamp,
-  });
-}
+});
 
 // ============================================
 // Alarm Management
@@ -143,95 +138,130 @@ function setupAlarms(): void {
   chrome.alarms.create(ALARMS.KEEP_ALIVE, {
     periodInMinutes: TIMING.KEEP_ALIVE_INTERVAL / 60000,
   });
-  
-  // Check schedule every minute for badge updates
-  chrome.alarms.create('schedule_check', {
+  chrome.alarms.create(ALARMS.PRESENCE_HEARTBEAT, {
+    periodInMinutes: TIMING.PRESENCE_HEARTBEAT_INTERVAL / 60000,
+  });
+  // Chrome's alarms API requires periodInMinutes >= 1; run the sweep
+  // every minute even though the timeout window is 60 s.
+  chrome.alarms.create(ALARMS.PRESENCE_SWEEP, {
     periodInMinutes: 1,
   });
-  
   console.log('[WatchParty] Alarms set up');
 }
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === ALARMS.KEEP_ALIVE) {
-    console.log('[WatchParty] Keep-alive ping');
-    
-    // Reconnect WebSocket if disconnected
-    if (!wsClient.isConnected) {
-      console.log('[WatchParty] Reconnecting WebSocket...');
-      initializeWebSocket();
+    // No-op ping to keep service worker alive between events
+    return;
+  }
+  if (alarm.name === ALARMS.PRESENCE_HEARTBEAT && activeChannel) {
+    try {
+      const userId = await authService.getAppwriteUserId();
+      await appwriteClient.sendHeartbeat(activeChannel.$id, userId);
+    } catch (err) {
+      console.error('[WatchParty] Heartbeat failed:', err);
     }
   }
-  
-  if (alarm.name === 'schedule_check') {
-    await checkScheduleAndUpdateBadge();
-  }
-  
-  if (alarm.name.startsWith(ALARMS.SHOW_REMINDER)) {
-    const showId = alarm.name.replace(ALARMS.SHOW_REMINDER, '');
-    await handleShowReminder(showId);
+  if (alarm.name === ALARMS.PRESENCE_SWEEP && activeChannel) {
+    try {
+      await appwriteClient.sweepStalePresence(
+        activeChannel.$id,
+        TIMING.PRESENCE_TIMEOUT_MS
+      );
+    } catch (err) {
+      console.warn('[WatchParty] Presence sweep failed:', err);
+    }
   }
 });
 
-async function checkScheduleAndUpdateBadge(): Promise<void> {
-  try {
-    const response = await apiClient.getSchedule();
-    
-    // Check if a new show just started
-    if (response.currentShow && (!currentLiveShow || currentLiveShow.id !== response.currentShow.id)) {
-      // New show started - send notification
-      await notificationManager.showStartingNotification(response.currentShow);
-      await notificationManager.storeShowInfo(response.currentShow);
-    }
-    
-    currentLiveShow = response.currentShow;
-    
-    // Update badge
-    if (response.currentShow) {
-      // Show is live - red badge with "LIVE"
-      updateBadge('LIVE', '#FF0000');
-    } else if (response.upcomingShows.length > 0) {
-      // Show coming up - check if within 30 minutes
-      const nextShow = response.upcomingShows[0];
-      const startTime = new Date(nextShow.startTime).getTime();
-      const minutesUntil = Math.floor((startTime - Date.now()) / 60000);
-      
-      if (minutesUntil <= 30 && minutesUntil > 0) {
-        updateBadge(`${minutesUntil}m`, '#3EA6FF');
-      } else {
-        clearBadge();
-      }
-    } else {
-      clearBadge();
-    }
-  } catch (error) {
-    console.error('[WatchParty] Failed to check schedule:', error);
-  }
+// ============================================
+// Realtime Subscription
+// ============================================
+
+async function rejoinChannel(channelId: string): Promise<void> {
+  const userId = await authService.getAppwriteUserId();
+  const localId = await getUserId();
+  const username = (await getUsername()) || `Guest_${localId.substring(5, 10)}`;
+
+  realtimeClient.subscribe(channelId, {
+    onChannelUpdate: handleChannelUpdate,
+    onChatMessage: handleIncomingMessage,
+    onPresenceChange: handlePresenceChange,
+    onError: (err) => console.error('[WatchParty] Realtime error:', err),
+    onStatusChange: handleRealtimeStatus,
+  });
+
+  await appwriteClient.sendHeartbeat(channelId, userId);
+  await appwriteClient.touchPresence(channelId, userId, username);
 }
 
-async function handleShowReminder(showId: string): Promise<void> {
-  console.log('[WatchParty] Show reminder:', showId);
-  
-  // Get reminder info
-  const result = await chrome.storage.local.get(`reminder_${showId}`);
-  const reminderInfo = result[`reminder_${showId}`];
-  
-  if (!reminderInfo) {
-    console.log('[WatchParty] No reminder info found for:', showId);
+async function handleChannelUpdate(channel: ChannelDoc): Promise<void> {
+  activeChannel = channel;
+
+  if (channel.state === 'stopped') {
+    broadcastToYouTubeTabs({
+      type: 'BROADCAST_STOPPED',
+      channelId: channel.$id,
+    });
+    cachedMessages = [];
     return;
   }
-  
-  // Show notification
-  await chrome.notifications.create(`reminder_${showId}`, {
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('public/icons/icon128.png'),
-    title: 'Watch Party Starting Soon!',
-    message: `"${reminderInfo.showTitle}" starts in 5 minutes`,
-    priority: 2,
+
+  // Enrich the doc with the derived currentVideoId so the content
+  // script can drive late-join navigation without re-fetching the
+  // playlist on every update. We cache the playlist keyed by channel
+  // id and refresh on index changes only.
+  const enriched = { ...channel } as ChannelDoc & { currentVideoId?: string };
+  try {
+    const items = await appwriteClient.listPlaylist(channel.$id);
+    enriched.currentVideoId = items[channel.currentVideoIndex]?.videoId;
+  } catch (err) {
+    console.warn('[WatchParty] Failed to enrich channel update with currentVideoId:', err);
+  }
+
+  broadcastToYouTubeTabs({
+    type: 'CHANNEL_UPDATE',
+    channel: enriched,
   });
-  
-  // Clean up reminder storage
-  await chrome.storage.local.remove(`reminder_${showId}`);
+}
+
+function handleIncomingMessage(message: ChatMessage): void {
+  cachedMessages.push(message);
+  if (cachedMessages.length > 200) {
+    cachedMessages = cachedMessages.slice(-200);
+  }
+  broadcastToYouTubeTabs({
+    type: 'NEW_MESSAGE',
+    message,
+  });
+}
+
+function handleRealtimeStatus(status: 'connecting' | 'connected' | 'reconnecting' | 'disconnected'): void {
+  // The content script's CONNECTION_STATUS message type only models
+  // three states; fold 'connecting' into 'reconnecting' so the dot
+  // animates while the first connection is being established.
+  const mapped =
+    status === 'connecting' ? 'reconnecting' :
+    status === 'connected' ? 'connected' :
+    status === 'reconnecting' ? 'reconnecting' :
+    'disconnected';
+  broadcastToYouTubeTabs({
+    type: 'CONNECTION_STATUS',
+    status: mapped,
+  });
+}
+
+function handlePresenceChange(channelId: string, count: number): void {
+  if (count > 0) {
+    updateBadge(count.toString(), '#FF0000');
+  } else {
+    clearBadge();
+  }
+  broadcastToYouTubeTabs({
+    type: 'USER_COUNT_UPDATE',
+    count,
+    channelId,
+  });
 }
 
 // ============================================
@@ -244,76 +274,87 @@ chrome.runtime.onMessage.addListener((
   sendResponse
 ) => {
   console.log('[WatchParty] Received message:', message.type);
-  
+
   handleMessage(message)
     .then(sendResponse)
     .catch((error) => {
       console.error('[WatchParty] Message handling error:', error);
       sendResponse({ error: error.message });
     });
-  
+
   return true;
 });
 
 async function handleMessage(message: ContentToBackgroundMessage): Promise<unknown> {
   switch (message.type) {
-    case 'CHECK_SCHEDULED':
-      return handleCheckScheduled(message.videoId);
-    
-    case 'GET_SCHEDULE':
-      return handleGetSchedule();
-    
-    case 'GET_CURRENT_SHOW':
-      return handleGetCurrentShow();
-    
-    case 'GET_NEXT_VIDEO':
-      return handleGetNextVideo();
-    
     case 'GET_USERNAME':
       return handleGetUsername();
-    
+
     case 'SET_USERNAME':
       return handleSetUsername(message.username);
-    
+
     case 'GET_SETTINGS':
       return handleGetSettings();
-    
-    case 'JOIN_CHAT':
-      return handleJoinChat(message.showId);
-    
-    case 'LEAVE_CHAT':
-      return handleLeaveChat(message.showId);
-    
-    case 'SEND_MESSAGE':
-      return handleSendMessage(message.message, message.showId);
-    
-    case 'SET_REMINDER':
-      return handleSetReminder(message.showId, message.showTitle, message.startTime);
-    
+
+    case 'SEND_CHAT':
+      return handleSendChat(message.text);
+
     case 'GOOGLE_SIGN_IN':
       return handleGoogleSignIn();
-    
+
     case 'GOOGLE_SIGN_OUT':
       return handleGoogleSignOut();
-    
+
     case 'GET_GOOGLE_USER':
       return handleGetGoogleUser();
-    
-    case 'VIDEO_ENDED':
-      return handleVideoEnded(message.videoId, message.showId);
-    
+
     case 'HOST_CHANNEL':
-      return handleHostChannel(message.channelName, message.videoUrl);
-    
+      return handleHostChannel(message.channelName, message.visibility, message.videoUrl);
+
     case 'JOIN_CHANNEL':
       return handleJoinChannel(message.channelCode);
-    
+
     case 'LEAVE_CHANNEL':
       return handleLeaveChannel();
-    
+
     case 'GET_SESSION_STATUS':
       return handleGetSessionStatus();
-    
+
+    case 'VIDEO_ENDED':
+      return handleVideoEnded(message.videoId);
+
+    case 'REPORT_VIDEO_DURATION':
+      return handleReportVideoDuration(message.videoId, message.duration);
+
+    case 'LIST_PLAYLIST':
+      return handleListPlaylist(message.channelId);
+    case 'ADD_VIDEO':
+      return handleAddVideo(message.channelId, message.videoUrl);
+    case 'REMOVE_VIDEO':
+      return handleRemoveVideo(message.itemId);
+    case 'REORDER_VIDEO':
+      return handleReorderVideo(message.itemId, message.position);
+
+    case 'START_BROADCAST':
+      return handleStartBroadcast(message.channelId);
+    case 'PAUSE_BROADCAST':
+      return handlePauseBroadcast(message.channelId);
+    case 'RESUME_BROADCAST':
+      return handleResumeBroadcast(message.channelId);
+    case 'SKIP_VIDEO':
+      return handleSkipVideo(message.channelId);
+    case 'STOP_BROADCAST':
+      return handleStopBroadcast(message.channelId);
+
+    case 'LIST_OWNED_CHANNELS':
+      return handleListOwnedChannels();
+    case 'DELETE_CHANNEL':
+      return handleDeleteChannel(message.channelId);
+    case 'ENTER_CHANNEL':
+      return handleEnterChannel(message.channelId);
+    case 'GET_CURRENT_CHANNEL':
+      return handleGetCurrentChannel();
+
     default:
       console.warn('[WatchParty] Unknown message type:', message);
       return { error: 'Unknown message type' };
@@ -324,92 +365,10 @@ async function handleMessage(message: ContentToBackgroundMessage): Promise<unkno
 // Message Handlers
 // ============================================
 
-async function handleCheckScheduled(videoId: string): Promise<CheckScheduledResponse> {
-  console.log('[WatchParty] Checking if video is scheduled:', videoId);
-  
-  try {
-    const response = await apiClient.checkVideo(videoId);
-    return {
-      isScheduled: response.isScheduled,
-      show: response.show,
-      currentTimestamp: response.timestamp,
-    };
-  } catch (error) {
-    console.error('[WatchParty] API error checking video:', error);
-    return {
-      isScheduled: false,
-      show: null,
-      currentTimestamp: 0,
-    };
-  }
-}
-
-async function handleGetSchedule(): Promise<GetScheduleResponse> {
-  console.log('[WatchParty] Getting schedule');
-  
-  try {
-    const response = await apiClient.getSchedule();
-    return {
-      currentShow: response.currentShow,
-      upcomingShows: response.upcomingShows,
-      viewerCount: response.viewerCount,
-    };
-  } catch (error) {
-    console.error('[WatchParty] API error getting schedule:', error);
-    return {
-      currentShow: null,
-      upcomingShows: [],
-      viewerCount: 0,
-    };
-  }
-}
-
-async function handleGetCurrentShow(): Promise<{ show: unknown; timestamp: number; viewerCount: number }> {
-  console.log('[WatchParty] Getting current show');
-  
-  try {
-    const response = await apiClient.getCurrentShow();
-    return {
-      show: response.show,
-      timestamp: response.timestamp,
-      viewerCount: response.viewerCount,
-    };
-  } catch (error) {
-    console.error('[WatchParty] API error getting current show:', error);
-    return {
-      show: null,
-      timestamp: 0,
-      viewerCount: 0,
-    };
-  }
-}
-
-async function handleGetNextVideo(): Promise<{ nextVideoId: string | null }> {
-  console.log('[WatchParty] Getting next video');
-  
-  try {
-    const response = await apiClient.getSchedule();
-    
-    // Get the next video from upcoming shows
-    if (response.upcomingShows && response.upcomingShows.length > 0) {
-      const nextShow = response.upcomingShows[0];
-      console.log('[WatchParty] Next video:', nextShow.videoId);
-      return { nextVideoId: nextShow.videoId };
-    }
-    
-    console.log('[WatchParty] No next video in queue');
-    return { nextVideoId: null };
-  } catch (error) {
-    console.error('[WatchParty] API error getting next video:', error);
-    return { nextVideoId: null };
-  }
-}
-
 async function handleGetUsername(): Promise<GetUsernameResponse> {
-  const odname = await getUsername();
-  const odId = await getUserId();
-  
-  return { username: odname, userId: odId };
+  const username = await getUsername();
+  const userId = await getUserId();
+  return { username, userId };
 }
 
 async function handleSetUsername(username: string): Promise<{ success: boolean; error?: string }> {
@@ -426,92 +385,27 @@ async function handleGetSettings(): Promise<{ settings: Awaited<ReturnType<typeo
   return { settings };
 }
 
-async function handleJoinChat(showId: string): Promise<{ success: boolean; messages: ChatMessage[] }> {
-  console.log('[WatchParty] Joining chat:', showId);
-  
-  const odId = await getUserId();
-  let odname = await getUsername();
-  
-  // Generate default username if not set
-  if (!odname) {
-    odname = `User_${odId.substring(5, 10)}`;
+async function handleSendChat(text: string): Promise<{ success: boolean; error?: string }> {
+  if (!activeChannel) {
+    return { success: false, error: 'Not in a channel' };
   }
-  
-  // Ensure WebSocket is connected
-  if (!wsClient.isConnected) {
-    initializeWebSocket();
-    // Wait a bit for connection
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  try {
+    const userId = await authService.getAppwriteUserId();
+    const localId = await getUserId();
+    const username = (await getUsername()) || `Guest_${localId.substring(5, 10)}`;
+    await appwriteClient.sendChatMessage(activeChannel.$id, userId, username, text);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
   }
-  
-  wsClient.joinRoom(showId, odId, odname);
-  
-  return { success: true, messages: cachedMessages };
 }
-
-async function handleLeaveChat(showId: string): Promise<{ success: boolean }> {
-  console.log('[WatchParty] Leaving chat:', showId);
-  
-  wsClient.leaveRoom();
-  cachedMessages = [];
-  
-  return { success: true };
-}
-
-async function handleSendMessage(message: string, _showId: string): Promise<{ success: boolean; error?: string }> {
-  console.log('[WatchParty] Sending message:', message.substring(0, 50));
-  
-  if (!wsClient.isConnected) {
-    return { success: false, error: 'Not connected to chat server' };
-  }
-  
-  const sent = wsClient.sendMessage(message);
-  
-  if (!sent) {
-    return { success: false, error: 'Failed to send message' };
-  }
-  
-  return { success: true };
-}
-
-async function handleSetReminder(showId: string, showTitle: string, startTime: string): Promise<{ success: boolean }> {
-  console.log('[WatchParty] Setting reminder for:', showId);
-  
-  const startMs = new Date(startTime).getTime();
-  const reminderTime = startMs - (5 * 60 * 1000); // 5 minutes before
-  
-  // Create alarm
-  const alarmName = `${ALARMS.SHOW_REMINDER}${showId}`;
-  
-  await chrome.alarms.create(alarmName, {
-    when: reminderTime,
-  });
-  
-  // Store reminder info
-  await chrome.storage.local.set({
-    [`reminder_${showId}`]: {
-      showId,
-      showTitle,
-      startTime,
-    },
-  });
-  
-  console.log('[WatchParty] Reminder set for:', new Date(reminderTime).toISOString());
-  
-  return { success: true };
-}
-
-// ============================================
-// Google Auth Handlers
-// ============================================
 
 async function handleGoogleSignIn(): Promise<{ success: boolean; user?: unknown; error?: string }> {
   try {
-    const user = await authService.signIn();
-    
-    // Update username to Google name
-    await setUsername(user.name.split(' ')[0] || user.name);
-    
+    const user = await authService.signInWithGoogle();
+    if (user.name) {
+      await setUsername(user.name.split(' ')[0] || user.name);
+    }
     return { success: true, user };
   } catch (error) {
     console.error('[WatchParty] Google sign in failed:', error);
@@ -534,86 +428,54 @@ async function handleGetGoogleUser(): Promise<{ user: unknown | null }> {
   return { user };
 }
 
-async function handleVideoEnded(videoId: string, showId: string): Promise<{ success: boolean }> {
-  console.log('[WatchParty] Video ended:', videoId);
-  
-  // Tell server that video ended so it can advance the queue
-  if (wsClient.isConnected) {
-    wsClient.sendVideoEnded(showId);
-  }
-  
-  return { success: true };
-}
-
-// ============================================
-// Channel Hosting & Joining Handlers
-// ============================================
-
-function generateChannelCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
-
-function extractVideoId(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes('youtube.com')) {
-      return parsed.searchParams.get('v');
-    }
-    if (parsed.hostname === 'youtu.be') {
-      return parsed.pathname.slice(1);
-    }
-  } catch {
-    // Not a valid URL
-  }
-  return null;
-}
-
-async function handleHostChannel(channelName: string, videoUrl?: string): Promise<HostChannelResponse> {
+async function handleHostChannel(
+  channelName: string,
+  visibility: 'public' | 'private',
+  videoUrl?: string
+): Promise<HostChannelResponse> {
   console.log('[WatchParty] Hosting channel:', channelName);
-  
+
   try {
-    const userId = await getUserId();
-    const username = await getUsername() || `User_${userId.substring(5, 10)}`;
-    const channelCode = generateChannelCode();
-    const channelId = `ch_${crypto.randomUUID().replace(/-/g, '').substring(0, 12)}`;
-    
-    let videoId: string | null = null;
-    let videoTitle: string | null = null;
-    
+    // Use the Appwrite account id for the host identity. Appwrite
+    // permission roles only accept canonical account ids, and listing
+    // owned channels needs to match what was stored at create time.
+    const userId = await authService.getAppwriteUserId();
+    const localId = await getUserId();
+    const username = (await getUsername()) || `Guest_${localId.substring(5, 10)}`;
+
+    let initialVideoId: string | null = null;
     if (videoUrl) {
-      videoId = extractVideoId(videoUrl);
-      if (videoId) {
-        videoTitle = 'YouTube Video'; // Could fetch title from API later
+      initialVideoId = extractVideoId(videoUrl);
+      if (!initialVideoId) {
+        return { success: false, error: 'Invalid YouTube URL' };
       }
     }
-    
-    const session: WatchPartySession = {
-      channelId,
-      channelCode,
-      channelName,
+
+    const channel = await appwriteClient.createChannel({
+      name: channelName,
+      visibility,
       hostUserId: userId,
       hostUsername: username,
-      videoId,
-      videoTitle,
+      initialVideoId,
+    });
+
+    activeChannel = channel;
+
+    const session: WatchPartySession = {
+      channelId: channel.$id,
+      channelCode: channel.code,
+      channelName: channel.name,
+      hostUserId: channel.hostUserId,
+      hostUsername: channel.hostUsername,
+      videoId: initialVideoId,
+      videoTitle: null,
       viewerCount: 1,
       isHost: true,
-      createdAt: new Date().toISOString(),
+      createdAt: channel.createdAt,
     };
-    
     await saveActiveSession(session);
-    
-    // Join WebSocket room with channel ID
-    if (!wsClient.isConnected) {
-      initializeWebSocket();
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    wsClient.joinRoom(channelId, userId, username);
-    
+
+    await rejoinChannel(channel.$id);
     return { success: true, session };
   } catch (error) {
     console.error('[WatchParty] Failed to host channel:', error);
@@ -622,38 +484,27 @@ async function handleHostChannel(channelName: string, videoUrl?: string): Promis
 }
 
 async function handleJoinChannel(channelCode: string): Promise<JoinChannelResponse> {
-  console.log('[WatchParty] Joining channel with code:', channelCode);
-  
+  console.log('[WatchParty] Joining channel:', channelCode);
+
   try {
-    const userId = await getUserId();
-    const username = await getUsername() || `User_${userId.substring(5, 10)}`;
-    
-    // For now, create a local session with the channel code
-    // In production, this would validate the code against the server
-    const channelId = `ch_${channelCode.toLowerCase()}`;
-    
+    const channel = await appwriteClient.resolveChannelByCode(channelCode);
+    activeChannel = channel;
+
     const session: WatchPartySession = {
-      channelId,
-      channelCode,
-      channelName: `Party ${channelCode}`,
-      hostUserId: '',
-      hostUsername: '',
+      channelId: channel.$id,
+      channelCode: channel.code,
+      channelName: channel.name,
+      hostUserId: channel.hostUserId,
+      hostUsername: channel.hostUsername,
       videoId: null,
       videoTitle: null,
-      viewerCount: 1,
+      viewerCount: channel.viewerCount,
       isHost: false,
-      createdAt: new Date().toISOString(),
+      createdAt: channel.createdAt,
     };
-    
     await saveActiveSession(session);
-    
-    // Join WebSocket room
-    if (!wsClient.isConnected) {
-      initializeWebSocket();
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    wsClient.joinRoom(channelId, userId, username);
-    
+
+    await rejoinChannel(channel.$id);
     return { success: true, session };
   } catch (error) {
     console.error('[WatchParty] Failed to join channel:', error);
@@ -663,12 +514,21 @@ async function handleJoinChannel(channelCode: string): Promise<JoinChannelRespon
 
 async function handleLeaveChannel(): Promise<{ success: boolean }> {
   console.log('[WatchParty] Leaving channel');
-  
-  wsClient.leaveRoom();
+
+  if (activeChannel) {
+    const userId = await authService.getAppwriteUserId();
+    try {
+      await appwriteClient.removePresence(activeChannel.$id, userId);
+    } catch (err) {
+      console.warn('[WatchParty] Failed to remove presence:', err);
+    }
+    realtimeClient.unsubscribe();
+    activeChannel = null;
+  }
+
   cachedMessages = [];
   await clearActiveSession();
   clearBadge();
-  
   return { success: true };
 }
 
@@ -680,8 +540,246 @@ async function handleGetSessionStatus(): Promise<SessionStatusResponse> {
   };
 }
 
+async function handleVideoEnded(videoId: string): Promise<{ success: boolean }> {
+  if (!activeChannel) return { success: true };
+
+  // Optimistic advance: only the first client to fire wins; server-side
+  // update is conditional on the index/videoId matching the current state.
+  try {
+    await appwriteClient.advanceChannel(activeChannel.$id, videoId);
+  } catch (err) {
+    console.warn('[WatchParty] Advance skipped (likely already advanced):', err);
+  }
+  return { success: true };
+}
+
+async function handleReportVideoDuration(videoId: string, duration: number): Promise<{ success: boolean }> {
+  if (!activeChannel) return { success: true };
+  try {
+    await appwriteClient.setVideoDuration(activeChannel.$id, videoId, duration);
+  } catch (err) {
+    console.warn('[WatchParty] Failed to record duration:', err);
+  }
+  return { success: true };
+}
+
 // ============================================
-// Badge Management
+// Playlist handlers
+// ============================================
+
+async function handleListPlaylist(channelId: string): Promise<PlaylistResponse> {
+  try {
+    const items = await appwriteClient.listPlaylist(channelId);
+    return { success: true, items };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleAddVideo(channelId: string, videoUrl: string): Promise<MutationResponse & { item?: PlaylistItem }> {
+  try {
+    const videoId = extractVideoId(videoUrl);
+    if (!videoId) return { success: false, error: 'Invalid YouTube URL' };
+    const title = await fetchVideoTitle(videoId);
+    const item = await appwriteClient.addPlaylistItem(channelId, videoId, title);
+    return { success: true, item };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleRemoveVideo(itemId: string): Promise<MutationResponse> {
+  try {
+    await appwriteClient.removePlaylistItem(itemId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleReorderVideo(itemId: string, position: number): Promise<MutationResponse> {
+  try {
+    await appwriteClient.reorderPlaylistItem(itemId, position);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// ============================================
+// Host lifecycle handlers
+// ============================================
+
+async function handleStartBroadcast(channelId: string): Promise<MutationResponse> {
+  try {
+    await appwriteClient.startBroadcast(channelId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handlePauseBroadcast(channelId: string): Promise<MutationResponse> {
+  try {
+    await appwriteClient.pauseBroadcast(channelId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleResumeBroadcast(channelId: string): Promise<MutationResponse> {
+  try {
+    await appwriteClient.resumeBroadcast(channelId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleSkipVideo(channelId: string): Promise<MutationResponse> {
+  try {
+    const ch = await appwriteClient.getChannel(channelId);
+    const items = await appwriteClient.listPlaylist(channelId);
+    const current = items[ch.currentVideoIndex];
+    if (!current) return { success: false, error: 'No current video to skip' };
+    await appwriteClient.advanceChannel(channelId, current.videoId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleStopBroadcast(channelId: string): Promise<MutationResponse> {
+  try {
+    // Post a system chat message before stopping so viewers see context.
+    try {
+      await appwriteClient.sendChatMessage(channelId, 'system', 'System', 'Broadcast stopped by host');
+    } catch (chatErr) {
+      console.warn('[WatchParty] Failed to post stop chat message:', chatErr);
+    }
+    await appwriteClient.stopBroadcast(channelId);
+    // Ephemeral chat per PLAN.md §2 — wipe right after the stop event
+    // is observed by viewers. This replaces the deferred cleanup
+    // Appwrite Function (T15) for v1 ship; if abuse becomes a concern
+    // (clients delete each other's history), revisit by moving the
+    // wipe server-side with a function that gates on host identity.
+    try {
+      await appwriteClient.wipeChat(channelId);
+    } catch (wipeErr) {
+      console.warn('[WatchParty] Chat wipe failed:', wipeErr);
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// ============================================
+// Owned channels handlers
+// ============================================
+
+async function handleListOwnedChannels(): Promise<OwnedChannelsResponse> {
+  try {
+    const userId = await authService.getAppwriteUserId();
+    const channels = await appwriteClient.listOwnedChannels(userId);
+    return { success: true, channels };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Returns the currently active channel doc (enriched with currentVideoId)
+ * for use by content scripts loading mid-broadcast. New YouTube tabs
+ * miss the realtime CHANNEL_UPDATE event that fired when broadcast
+ * started, so they pull state on demand instead.
+ *
+ * Service workers in MV3 die between events. The module-level
+ * `activeChannel` does not survive eviction, so we rehydrate it from
+ * `chrome.storage.local` (where the popup persisted the session) and
+ * re-attach the realtime subscription before responding.
+ */
+async function handleGetCurrentChannel(): Promise<{ channel: (ChannelDoc & { currentVideoId?: string }) | null }> {
+  if (!activeChannel) {
+    const session = await getActiveSession();
+    if (!session) return { channel: null };
+    try {
+      activeChannel = await appwriteClient.getChannel(session.channelId);
+      await rejoinChannel(session.channelId);
+    } catch (err) {
+      console.warn('[WatchParty] Rehydrate channel failed:', err);
+      return { channel: null };
+    }
+  }
+  const enriched = { ...activeChannel } as ChannelDoc & { currentVideoId?: string };
+  try {
+    const items = await appwriteClient.listPlaylist(activeChannel.$id);
+    enriched.currentVideoId = items[activeChannel.currentVideoIndex]?.videoId;
+  } catch (err) {
+    console.warn('[WatchParty] currentVideoId enrich failed:', err);
+  }
+  return { channel: enriched };
+}
+
+async function handleEnterChannel(channelId: string): Promise<EnterChannelResponse> {
+  try {
+    const channel = await appwriteClient.getChannel(channelId);
+    activeChannel = channel;
+
+    const userId = await authService.getAppwriteUserId();
+    const isHost = channel.hostUserId === userId;
+
+    // Derive current videoId from playlist for the session card.
+    let videoId: string | null = null;
+    let videoTitle: string | null = null;
+    try {
+      const items = await appwriteClient.listPlaylist(channelId);
+      const current = items[channel.currentVideoIndex];
+      if (current) {
+        videoId = current.videoId;
+        videoTitle = current.videoTitle;
+      }
+    } catch {
+      // Playlist read is non-fatal for entering the channel.
+    }
+
+    const session: WatchPartySession = {
+      channelId: channel.$id,
+      channelCode: channel.code,
+      channelName: channel.name,
+      hostUserId: channel.hostUserId,
+      hostUsername: channel.hostUsername,
+      videoId,
+      videoTitle,
+      viewerCount: channel.viewerCount,
+      isHost,
+      createdAt: channel.createdAt,
+    };
+    await saveActiveSession(session);
+    await rejoinChannel(channelId);
+    return { success: true, session };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function handleDeleteChannel(channelId: string): Promise<MutationResponse> {
+  try {
+    // Best-effort cascade: stop broadcast, then delete the channel doc
+    // (deleteChannel cascades playlist / chat / presence rows). When the
+    // channel-cleanup-on-stop Function ships (M7) the cascade should
+    // move server-side.
+    await appwriteClient.stopBroadcast(channelId).catch(() => undefined);
+    await appwriteClient.deleteChannel(channelId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// ============================================
+// Helpers
 // ============================================
 
 function updateBadge(text: string, color: string): void {
@@ -693,39 +791,18 @@ function clearBadge(): void {
   chrome.action.setBadgeText({ text: '' });
 }
 
-// ============================================
-// Tab Communication
-// ============================================
-
 async function broadcastToYouTubeTabs(message: BackgroundToContentMessage): Promise<void> {
   const tabs = await chrome.tabs.query({ url: 'https://www.youtube.com/*' });
-  
+
   for (const tab of tabs) {
     if (tab.id) {
       try {
         await chrome.tabs.sendMessage(tab.id, message);
       } catch {
-        // Tab might not have content script loaded
+        // Tab may not have content script loaded
       }
     }
   }
 }
 
-// ============================================
-// Initialize on load
-// ============================================
-
 console.log('[WatchParty] Service worker loaded');
-initializeWebSocket();
-
-// Initial schedule check
-checkScheduleAndUpdateBadge();
-
-// ============================================
-// Notification Click Handler
-// ============================================
-
-chrome.notifications.onClicked.addListener(async (notificationId) => {
-  console.log('[WatchParty] Notification clicked:', notificationId);
-  await notificationManager.handleNotificationClick(notificationId);
-});

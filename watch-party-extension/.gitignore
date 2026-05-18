@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+dist-package/
 
 # IDE
 .vscode/
@@ -26,3 +27,8 @@ npm-debug.log*
 # Chrome extension
 *.crx
 *.pem
+
+# MCP server config (contains API keys)
+.mcp.json
+.appwrite-key
+

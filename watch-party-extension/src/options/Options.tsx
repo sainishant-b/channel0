@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { Settings } from '@shared/types';
 import { getSettings, saveSettings, getUsername, setUsername } from '@shared/storage';
 import { DEFAULT_SETTINGS } from '@shared/constants';
@@ -38,13 +38,6 @@ export function Options() {
     }
   }
 
-  function updateNotifications(updates: Partial<Settings['notifications']>) {
-    setSettingsState(prev => ({
-      ...prev,
-      notifications: { ...prev.notifications, ...updates },
-    }));
-  }
-
   function updateAppearance(updates: Partial<Settings['appearance']>) {
     setSettingsState(prev => ({
       ...prev,
@@ -71,7 +64,6 @@ export function Options() {
       </header>
 
       <main className="options-main">
-        {/* Username Section */}
         <section className="settings-section">
           <h2 className="section-title">Profile</h2>
           <div className="setting-item">
@@ -88,67 +80,9 @@ export function Options() {
           </div>
         </section>
 
-        {/* Notifications Section */}
-        <section className="settings-section">
-          <h2 className="section-title">Notifications</h2>
-          
-          <div className="setting-item">
-            <label className="toggle-setting">
-              <span className="toggle-label">Enable notifications</span>
-              <input
-                type="checkbox"
-                checked={settings.notifications.enabled}
-                onChange={(e) => updateNotifications({ enabled: e.target.checked })}
-              />
-              <span className="toggle-slider"></span>
-            </label>
-          </div>
-
-          <div className="setting-item">
-            <label className="toggle-setting">
-              <span className="toggle-label">Notify when shows start</span>
-              <input
-                type="checkbox"
-                checked={settings.notifications.showStarting}
-                onChange={(e) => updateNotifications({ showStarting: e.target.checked })}
-                disabled={!settings.notifications.enabled}
-              />
-              <span className="toggle-slider"></span>
-            </label>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">Reminder time</label>
-            <select
-              className="setting-select"
-              value={settings.notifications.reminderMinutes}
-              onChange={(e) => updateNotifications({ reminderMinutes: Number(e.target.value) })}
-              disabled={!settings.notifications.enabled}
-            >
-              <option value={5}>5 minutes before</option>
-              <option value={10}>10 minutes before</option>
-              <option value={15}>15 minutes before</option>
-            </select>
-          </div>
-
-          <div className="setting-item">
-            <label className="toggle-setting">
-              <span className="toggle-label">Notification sound</span>
-              <input
-                type="checkbox"
-                checked={settings.notifications.sound}
-                onChange={(e) => updateNotifications({ sound: e.target.checked })}
-                disabled={!settings.notifications.enabled}
-              />
-              <span className="toggle-slider"></span>
-            </label>
-          </div>
-        </section>
-
-        {/* Appearance Section */}
         <section className="settings-section">
           <h2 className="section-title">Appearance</h2>
-          
+
           <div className="setting-item">
             <label className="setting-label">Chat overlay position</label>
             <select
@@ -189,10 +123,9 @@ export function Options() {
           </div>
         </section>
 
-        {/* Behavior Section */}
         <section className="settings-section">
           <h2 className="section-title">Behavior</h2>
-          
+
           <div className="setting-item">
             <label className="toggle-setting">
               <span className="toggle-label">Auto-sync playback</span>
@@ -203,7 +136,7 @@ export function Options() {
               />
               <span className="toggle-slider"></span>
             </label>
-            <p className="setting-hint">Automatically seek to the correct timestamp when out of sync</p>
+            <p className="setting-hint">Automatically seek to the channel timestamp when out of sync</p>
           </div>
 
           <div className="setting-item">
@@ -219,9 +152,8 @@ export function Options() {
           </div>
         </section>
 
-        {/* Save Button */}
         <div className="save-section">
-          <button 
+          <button
             className={`save-btn ${saved ? 'saved' : ''}`}
             onClick={handleSave}
             disabled={saving}
@@ -230,10 +162,22 @@ export function Options() {
           </button>
         </div>
 
-        {/* About Section */}
         <div className="about-section">
           <p>Watch Party Extension v1.0.0</p>
           <p>Watch YouTube together with friends</p>
+          <p className="about-links">
+            <a
+              href="https://github.com/your-repo/watch-party-extension/blob/main/docs/PRIVACY.md"
+              target="_blank"
+              rel="noreferrer noopener"
+            >Privacy</a>
+            <span aria-hidden="true"> · </span>
+            <a
+              href="https://github.com/your-repo/watch-party-extension/blob/main/docs/TERMS.md"
+              target="_blank"
+              rel="noreferrer noopener"
+            >Terms</a>
+          </p>
         </div>
       </main>
     </div>

@@ -10,23 +10,17 @@
   },
   "permissions": [
     "storage",
-    "notifications",
     "alarms",
     "tabs",
     "identity"
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://youtu.be/*"
+    "https://youtu.be/*",
+    "https://www.youtube-nocookie.com/*",
+    "https://nyc.cloud.appwrite.io/*",
+    "https://cloud.appwrite.io/*"
   ],
-  "oauth2": {
-    "client_id": "889645704628-aqulvlpbf89jes9din7i853q48bbmdqd.apps.googleusercontent.com",
-    "scopes": [
-      "openid",
-      "email",
-      "profile"
-    ]
-  },
   "background": {
     "service_worker": "src/background/service-worker.js",
     "type": "module"
@@ -39,7 +33,6 @@
     }
   ],
   "action": {
-    "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "public/icons/icon16.png",
       "48": "public/icons/icon48.png"

@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import type { WatchPartySession } from '@shared/types';
-import type { HostChannelResponse, JoinChannelResponse, SessionStatusResponse } from '@shared/message-types';
+import type {
+  HostChannelResponse,
+  JoinChannelResponse,
+  SessionStatusResponse,
+  EnterChannelResponse,
+} from '@shared/message-types';
+import { PlaylistEditor } from './PlaylistEditor';
+import { MyChannels } from './MyChannels';
+import { Dashboard } from './Dashboard';
 
-type PopupView = 'home' | 'host' | 'join' | 'session';
+type PopupView = 'home' | 'host' | 'join' | 'session' | 'playlist' | 'my-channels';
 
 interface GoogleUser {
   id: string;
@@ -22,11 +30,15 @@ export function Popup() {
   // Host form state
   const [channelName, setChannelName] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [hosting, setHosting] = useState(false);
 
   // Join form state
   const [channelCode, setChannelCode] = useState('');
   const [joining, setJoining] = useState(false);
+
+  // Playlist editor target (host's own channel id)
+  const [playlistChannelId, setPlaylistChannelId] = useState<string | null>(null);
 
   useEffect(() => {
     checkSessionStatus();
@@ -93,6 +105,7 @@ export function Popup() {
       const response = await chrome.runtime.sendMessage({
         type: 'HOST_CHANNEL',
         channelName: channelName.trim(),
+        visibility,
         videoUrl: videoUrl.trim() || undefined,
       }) as HostChannelResponse;
 
@@ -148,12 +161,6 @@ export function Popup() {
       setError(null);
     } catch (err) {
       console.error('Failed to leave channel:', err);
-    }
-  }
-
-  function handleCopyCode() {
-    if (session?.channelCode) {
-      navigator.clipboard.writeText(session.channelCode);
     }
   }
 
@@ -225,15 +232,43 @@ export function Popup() {
           <HomeView
             onHost={() => { setView('host'); setError(null); }}
             onJoin={() => { setView('join'); setError(null); }}
+            onMyChannels={() => { setView('my-channels'); setError(null); }}
+          />
+        ) : view === 'my-channels' ? (
+          <MyChannels
+            onBack={() => setView('home')}
+            onResume={async (channelId) => {
+              const response = await chrome.runtime.sendMessage({
+                type: 'ENTER_CHANNEL',
+                channelId,
+              }) as EnterChannelResponse;
+              if (response.success && response.session) {
+                setSession(response.session);
+                setView('session');
+              } else {
+                setError(response.error || 'Failed to enter channel');
+              }
+            }}
+            onEditPlaylist={(channelId) => {
+              setPlaylistChannelId(channelId);
+              setView('playlist');
+            }}
+          />
+        ) : view === 'playlist' && playlistChannelId ? (
+          <PlaylistEditor
+            channelId={playlistChannelId}
+            onBack={() => setView('my-channels')}
           />
         ) : view === 'host' ? (
           <HostView
             channelName={channelName}
             videoUrl={videoUrl}
+            visibility={visibility}
             error={error}
             hosting={hosting}
             onChannelNameChange={setChannelName}
             onVideoUrlChange={setVideoUrl}
+            onVisibilityChange={setVisibility}
             onHost={handleHost}
             onBack={() => { setView('home'); setError(null); }}
           />
@@ -247,11 +282,7 @@ export function Popup() {
             onBack={() => { setView('home'); setError(null); }}
           />
         ) : view === 'session' && session ? (
-          <SessionView
-            session={session}
-            onLeave={handleLeave}
-            onCopyCode={handleCopyCode}
-          />
+          <Dashboard session={session} onLeave={handleLeave} />
         ) : null}
       </main>
 
@@ -270,9 +301,10 @@ export function Popup() {
 interface HomeViewProps {
   onHost: () => void;
   onJoin: () => void;
+  onMyChannels: () => void;
 }
 
-function HomeView({ onHost, onJoin }: HomeViewProps) {
+function HomeView({ onHost, onJoin, onMyChannels }: HomeViewProps) {
   return (
     <div className="home-view">
       <div className="home-hero">
@@ -324,6 +356,21 @@ function HomeView({ onHost, onJoin }: HomeViewProps) {
             <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
           </svg>
         </button>
+
+        <button className="action-card my-channels-card" onClick={onMyChannels}>
+          <div className="action-card-icon my-channels-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+            </svg>
+          </div>
+          <div className="action-card-content">
+            <span className="action-card-title">My Channels</span>
+            <span className="action-card-desc">Manage your hosted channels & playlists</span>
+          </div>
+          <svg className="action-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -336,15 +383,17 @@ function HomeView({ onHost, onJoin }: HomeViewProps) {
 interface HostViewProps {
   channelName: string;
   videoUrl: string;
+  visibility: 'public' | 'private';
   error: string | null;
   hosting: boolean;
   onChannelNameChange: (val: string) => void;
   onVideoUrlChange: (val: string) => void;
+  onVisibilityChange: (val: 'public' | 'private') => void;
   onHost: () => void;
   onBack: () => void;
 }
 
-function HostView({ channelName, videoUrl, error, hosting, onChannelNameChange, onVideoUrlChange, onHost, onBack }: HostViewProps) {
+function HostView({ channelName, videoUrl, visibility, error, hosting, onChannelNameChange, onVideoUrlChange, onVisibilityChange, onHost, onBack }: HostViewProps) {
   return (
     <div className="form-view">
       <button className="back-btn" onClick={onBack}>
@@ -376,6 +425,26 @@ function HostView({ channelName, videoUrl, error, hosting, onChannelNameChange, 
             maxLength={30}
             onKeyDown={(e) => e.key === 'Enter' && onHost()}
           />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Visibility</label>
+          <div className="visibility-toggle">
+            <button
+              type="button"
+              className={`visibility-option ${visibility === 'public' ? 'active' : ''}`}
+              onClick={() => onVisibilityChange('public')}
+            >
+              Public
+            </button>
+            <button
+              type="button"
+              className={`visibility-option ${visibility === 'private' ? 'active' : ''}`}
+              onClick={() => onVisibilityChange('private')}
+            >
+              Private
+            </button>
+          </div>
         </div>
 
         <div className="form-group">
@@ -481,91 +550,3 @@ function JoinView({ channelCode, error, joining, onChannelCodeChange, onJoin, on
   );
 }
 
-// ============================================
-// Session View — Active Watch Party
-// ============================================
-
-interface SessionViewProps {
-  session: WatchPartySession;
-  onLeave: () => void;
-  onCopyCode: () => void;
-}
-
-function SessionView({ session, onLeave, onCopyCode }: SessionViewProps) {
-  const [copied, setCopied] = useState(false);
-
-  function handleCopy() {
-    onCopyCode();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  function handleOpenVideo() {
-    if (session.videoId) {
-      chrome.tabs.create({ url: `https://www.youtube.com/watch?v=${session.videoId}` });
-    }
-  }
-
-  return (
-    <div className="session-view">
-      <div className="session-status-badge">
-        <span className="live-dot"></span>
-        {session.isHost ? 'HOSTING' : 'WATCHING'}
-      </div>
-
-      <div className="session-info">
-        <h3 className="session-channel-name">{session.channelName}</h3>
-        <div className="session-meta">
-          <span className="session-viewers">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-            </svg>
-            {session.viewerCount} watching
-          </span>
-          <span className="session-host">
-            Hosted by {session.isHost ? 'you' : session.hostUsername}
-          </span>
-        </div>
-      </div>
-
-      <div className="session-code-card">
-        <span className="code-label">Share this code with friends</span>
-        <div className="code-display">
-          <span className="code-value">{session.channelCode}</span>
-          <button className="copy-btn" onClick={handleCopy} title="Copy code">
-            {copied ? (
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="#2ba640">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-              </svg>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {session.videoId && (
-        <div className="session-video-card" onClick={handleOpenVideo}>
-          <img
-            className="session-thumbnail"
-            src={`https://img.youtube.com/vi/${session.videoId}/mqdefault.jpg`}
-            alt={session.videoTitle || 'Video thumbnail'}
-          />
-          <div className="session-video-info">
-            <span className="session-video-title">{session.videoTitle || 'Untitled Video'}</span>
-            <span className="session-video-link">Open in YouTube →</span>
-          </div>
-        </div>
-      )}
-
-      <button className="leave-btn" onClick={onLeave}>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-        </svg>
-        Leave Party
-      </button>
-    </div>
-  );
-}

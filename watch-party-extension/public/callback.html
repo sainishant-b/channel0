@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Watch Party — Sign-in</title>
+    <style>
+      body {
+        font-family: 'Roboto', 'Arial', sans-serif;
+        background: #0f0f0f;
+        color: #f1f1f1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        text-align: center;
+      }
+      .card {
+        max-width: 360px;
+        padding: 24px;
+        border: 1px solid #303030;
+        border-radius: 12px;
+        background: #181818;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Sign-in complete</h2>
+      <p>You can close this window and return to the extension.</p>
+    </div>
+    <script>
+      // Auto-close after a beat — chrome.identity.launchWebAuthFlow
+      // resolves once this URL is reached.
+      setTimeout(() => window.close(), 750);
+    </script>
+  </body>
+</html>

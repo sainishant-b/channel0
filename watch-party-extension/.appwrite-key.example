@@ -1,0 +1,8 @@
+# Copy this file to `.appwrite-key` (gitignored) and fill in values.
+# Used by scripts/appwrite/*.sh and as a reference when configuring
+# the Appwrite MCP server (.mcp.json).
+
+APPWRITE_ENDPOINT=https://nyc.cloud.appwrite.io/v1
+APPWRITE_PROJECT_ID=your-project-id
+APPWRITE_DATABASE_ID=your-database-id
+APPWRITE_API_KEY=your-server-api-key

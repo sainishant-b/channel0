@@ -72,7 +72,6 @@ export async function getSettings(): Promise<Settings> {
   
   // Merge with defaults to handle new settings added in updates
   return {
-    notifications: { ...DEFAULT_SETTINGS.notifications, ...stored.notifications },
     appearance: { ...DEFAULT_SETTINGS.appearance, ...stored.appearance },
     behavior: { ...DEFAULT_SETTINGS.behavior, ...stored.behavior },
   };
@@ -81,58 +80,10 @@ export async function getSettings(): Promise<Settings> {
 export async function saveSettings(settings: Partial<Settings>): Promise<void> {
   const current = await getSettings();
   const updated = {
-    notifications: { ...current.notifications, ...settings.notifications },
     appearance: { ...current.appearance, ...settings.appearance },
     behavior: { ...current.behavior, ...settings.behavior },
   };
   await chrome.storage.sync.set({ [STORAGE_KEYS.SETTINGS]: updated });
-}
-
-// ============================================
-// Schedule Cache
-// ============================================
-
-export async function getCachedSchedule<T>(): Promise<{ data: T; timestamp: number } | null> {
-  const result = await chrome.storage.local.get([
-    STORAGE_KEYS.SCHEDULE_CACHE,
-    STORAGE_KEYS.SCHEDULE_LAST_FETCH,
-  ]);
-  
-  if (!result[STORAGE_KEYS.SCHEDULE_CACHE]) {
-    return null;
-  }
-  
-  return {
-    data: result[STORAGE_KEYS.SCHEDULE_CACHE],
-    timestamp: result[STORAGE_KEYS.SCHEDULE_LAST_FETCH] || 0,
-  };
-}
-
-export async function setCachedSchedule<T>(data: T): Promise<void> {
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.SCHEDULE_CACHE]: data,
-    [STORAGE_KEYS.SCHEDULE_LAST_FETCH]: Date.now(),
-  });
-}
-
-// ============================================
-// Chat History Cache
-// ============================================
-
-export async function getChatHistory(showId: string): Promise<unknown[]> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.CHAT_HISTORY);
-  const history = result[STORAGE_KEYS.CHAT_HISTORY] || {};
-  return history[showId] || [];
-}
-
-export async function saveChatHistory(showId: string, messages: unknown[]): Promise<void> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.CHAT_HISTORY);
-  const history = result[STORAGE_KEYS.CHAT_HISTORY] || {};
-  
-  // Keep only last N messages
-  history[showId] = messages.slice(-CHAT.MAX_HISTORY_MESSAGES);
-  
-  await chrome.storage.local.set({ [STORAGE_KEYS.CHAT_HISTORY]: history });
 }
 
 // ============================================

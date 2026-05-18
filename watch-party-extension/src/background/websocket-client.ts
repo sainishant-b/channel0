@@ -1,235 +1,158 @@
-import { io, Socket } from 'socket.io-client';
-import { WS_URL, TIMING } from '@shared/constants';
-import type { ChatMessage } from '@shared/types';
+import { appwriteRawClient, appwriteClient } from '@shared/api-client';
+import { APPWRITE_DATABASE_ID, COLLECTION_IDS } from '@shared/constants';
+import type { ChannelDoc, ChatMessage } from '@shared/types';
 
 // ============================================
 // Types
 // ============================================
 
-type ConnectionStatus = 'connected' | 'connecting' | 'reconnecting' | 'disconnected';
+export type RealtimeStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
-interface WSEventHandlers {
-  onMessage: (message: ChatMessage) => void;
-  onUserCount: (showId: string, count: number) => void;
-  onSync: (showId: string, timestamp: number) => void;
-  onConnectionChange: (status: ConnectionStatus) => void;
-  onHistory: (messages: ChatMessage[]) => void;
+interface RealtimeHandlers {
+  onChannelUpdate: (channel: ChannelDoc) => void;
+  onChatMessage: (message: ChatMessage) => void;
+  onPresenceChange: (channelId: string, count: number) => void;
   onError: (error: string) => void;
-  onVideoChange?: (videoId: string, timestamp: number) => void;
+  onStatusChange?: (status: RealtimeStatus) => void;
+}
+
+interface AppwriteRealtimeEvent<T> {
+  events: string[];
+  channels: string[];
+  payload: T;
 }
 
 // ============================================
-// WebSocket Client
+// Realtime client (Appwrite Databases subscriptions)
 // ============================================
 
-class WebSocketClient {
-  private socket: Socket | null = null;
-  private currentShowId: string | null = null;
-  private userId: string | null = null;
-  private username: string | null = null;
-  private handlers: WSEventHandlers | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-
-  get isConnected(): boolean {
-    return this.socket?.connected ?? false;
-  }
-
-  get connectionStatus(): ConnectionStatus {
-    if (!this.socket) return 'disconnected';
-    if (this.socket.connected) return 'connected';
-    if (this.reconnectAttempts > 0) return 'reconnecting';
-    return 'connecting';
-  }
+class RealtimeClient {
+  private unsubscribers: Array<() => void> = [];
+  private currentChannelId: string | null = null;
+  private presenceCount = 0;
+  private status: RealtimeStatus = 'disconnected';
+  private currentHandlers: RealtimeHandlers | null = null;
 
   /**
-   * Initialize the WebSocket connection
+   * Subscribe to a channel's realtime streams: channel doc updates,
+   * its chat messages, and its presence rows. Each subscription is
+   * tied to the channel id; calling subscribe again tears down the
+   * previous one before opening new ones.
+   *
+   * Appwrite's SDK Realtime client maintains a shared WebSocket across
+   * all subscriptions and handles auto-reconnect internally. We
+   * surface a derived `RealtimeStatus` so the UI can show connecting /
+   * reconnecting hints without needing access to the underlying socket.
    */
-  connect(handlers: WSEventHandlers): void {
-    if (this.socket?.connected) {
-      console.log('[WS Client] Already connected');
-      return;
-    }
+  subscribe(channelId: string, handlers: RealtimeHandlers): void {
+    this.unsubscribe();
+    this.currentChannelId = channelId;
+    this.presenceCount = 0;
+    this.currentHandlers = handlers;
+    this.setStatus('connecting');
 
-    this.handlers = handlers;
+    const channelDocChannel =
+      `databases.${APPWRITE_DATABASE_ID}.collections.${COLLECTION_IDS.CHANNELS}.documents.${channelId}`;
+    const chatCollectionChannel =
+      `databases.${APPWRITE_DATABASE_ID}.collections.${COLLECTION_IDS.CHAT_MESSAGES}.documents`;
+    const presenceCollectionChannel =
+      `databases.${APPWRITE_DATABASE_ID}.collections.${COLLECTION_IDS.PRESENCE}.documents`;
 
-    console.log('[WS Client] Connecting to', WS_URL);
-
-    this.socket = io(WS_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: TIMING.RECONNECT_BASE_DELAY,
-      reconnectionDelayMax: TIMING.RECONNECT_MAX_DELAY,
-      timeout: 10000,
-    });
-
-    this.setupEventListeners();
-  }
-
-  /**
-   * Disconnect from the server
-   */
-  disconnect(): void {
-    if (this.currentShowId) {
-      this.leaveRoom();
-    }
-    
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    
-    this.reconnectAttempts = 0;
-    console.log('[WS Client] Disconnected');
-  }
-
-  /**
-   * Join a chat room for a show
-   */
-  joinRoom(showId: string, odId: string, odname: string): void {
-    if (!this.socket?.connected) {
-      console.warn('[WS Client] Cannot join room - not connected');
-      return;
-    }
-
-    // Leave current room first
-    if (this.currentShowId && this.currentShowId !== showId) {
-      this.leaveRoom();
-    }
-
-    this.currentShowId = showId;
-    this.userId = odId;
-    this.username = odname;
-
-    console.log('[WS Client] Joining room:', showId, 'as', odname);
-
-    this.socket.emit('join', {
-      showId,
-      userId: odId,
-      username: odname,
-    });
-  }
-
-  /**
-   * Leave the current chat room
-   */
-  leaveRoom(): void {
-    if (!this.socket?.connected || !this.currentShowId) {
-      return;
-    }
-
-    console.log('[WS Client] Leaving room:', this.currentShowId);
-
-    this.socket.emit('leave', {
-      showId: this.currentShowId,
-    });
-
-    this.currentShowId = null;
-  }
-
-  /**
-   * Send a chat message
-   */
-  sendMessage(content: string): boolean {
-    if (!this.socket?.connected) {
-      console.warn('[WS Client] Cannot send message - not connected');
-      return false;
-    }
-
-    if (!this.currentShowId) {
-      console.warn('[WS Client] Cannot send message - not in a room');
-      return false;
-    }
-
-    console.log('[WS Client] Sending message:', content.substring(0, 50));
-
-    this.socket.emit('message', {
-      showId: this.currentShowId,
-      content,
-    });
-
-    return true;
-  }
-  
-  /**
-   * Notify server that video ended
-   */
-  sendVideoEnded(showId: string): void {
-    if (!this.socket?.connected) {
-      console.warn('[WS Client] Cannot send videoEnded - not connected');
-      return;
-    }
-    
-    console.log('[WS Client] Sending videoEnded for show:', showId);
-    
-    this.socket.emit('videoEnded', { showId });
-  }
-
-  /**
-   * Set up Socket.io event listeners
-   */
-  private setupEventListeners(): void {
-    if (!this.socket) return;
-
-    // Connection events
-    this.socket.on('connect', () => {
-      console.log('[WS Client] Connected');
-      this.reconnectAttempts = 0;
-      this.handlers?.onConnectionChange('connected');
-
-      // Rejoin room if we were in one
-      if (this.currentShowId && this.userId && this.username) {
-        this.joinRoom(this.currentShowId, this.userId, this.username);
+    const channelSub = appwriteRawClient.subscribe(
+      channelDocChannel,
+      (event: AppwriteRealtimeEvent<ChannelDoc>) => {
+        this.markConnected();
+        if (event.events.some(e => e.endsWith('.update'))) {
+          handlers.onChannelUpdate(event.payload);
+        }
       }
-    });
+    );
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('[WS Client] Disconnected:', reason);
-      this.handlers?.onConnectionChange('disconnected');
-    });
+    const chatSub = appwriteRawClient.subscribe(
+      chatCollectionChannel,
+      (event: AppwriteRealtimeEvent<ChatMessage>) => {
+        this.markConnected();
+        if (!event.payload || event.payload.channelId !== channelId) return;
+        if (event.events.some(e => e.endsWith('.create'))) {
+          handlers.onChatMessage(event.payload);
+        }
+      }
+    );
 
-    this.socket.on('connect_error', (error) => {
-      console.error('[WS Client] Connection error:', error.message);
-      this.reconnectAttempts++;
-      this.handlers?.onConnectionChange('reconnecting');
-    });
+    const presenceSub = appwriteRawClient.subscribe(
+      presenceCollectionChannel,
+      async (event: AppwriteRealtimeEvent<{ channelId: string }>) => {
+        this.markConnected();
+        if (!event.payload || event.payload.channelId !== channelId) return;
+        // Recompute count via a lightweight refresh — Appwrite doesn't
+        // surface aggregate counts directly, so we re-read on change.
+        await this.refreshPresenceCount(channelId, handlers);
+      }
+    );
 
-    // Chat events
-    this.socket.on('welcome', (data: { odId: string }) => {
-      console.log('[WS Client] Welcome received, userId:', data.odId);
-    });
+    this.unsubscribers.push(channelSub, chatSub, presenceSub);
 
-    this.socket.on('history', (data: { messages: ChatMessage[] }) => {
-      console.log('[WS Client] History received:', data.messages.length, 'messages');
-      this.handlers?.onHistory(data.messages);
-    });
+    // Seed initial presence count
+    void this.refreshPresenceCount(channelId, handlers);
 
-    this.socket.on('message', (data: { data: ChatMessage }) => {
-      console.log('[WS Client] Message received from:', data.data.username);
-      this.handlers?.onMessage(data.data);
-    });
+    // Also load initial channel + chat history
+    void this.loadInitialState(channelId, handlers);
+  }
 
-    this.socket.on('userCount', (data: { showId: string; count: number }) => {
-      console.log('[WS Client] User count update:', data.count);
-      this.handlers?.onUserCount(data.showId, data.count);
-    });
+  unsubscribe(): void {
+    for (const fn of this.unsubscribers) {
+      try {
+        fn();
+      } catch (err) {
+        console.warn('[Realtime] Unsubscribe error:', err);
+      }
+    }
+    this.unsubscribers = [];
+    this.currentChannelId = null;
+    this.presenceCount = 0;
+    this.currentHandlers = null;
+    this.setStatus('disconnected');
+  }
 
-    this.socket.on('sync', (data: { showId: string; timestamp: number }) => {
-      this.handlers?.onSync(data.showId, data.timestamp);
-    });
+  getStatus(): RealtimeStatus {
+    return this.status;
+  }
 
-    this.socket.on('error', (data: { code: string; message: string }) => {
-      console.error('[WS Client] Server error:', data.code, data.message);
-      this.handlers?.onError(data.message);
-    });
-    
-    this.socket.on('videoChange', (data: { videoId: string; timestamp: number }) => {
-      console.log('[WS Client] Video changed to:', data.videoId);
-      this.handlers?.onVideoChange?.(data.videoId, data.timestamp);
-    });
+  private setStatus(next: RealtimeStatus): void {
+    if (next === this.status) return;
+    this.status = next;
+    this.currentHandlers?.onStatusChange?.(next);
+  }
+
+  private markConnected(): void {
+    if (this.status !== 'connected') this.setStatus('connected');
+  }
+
+  private async loadInitialState(channelId: string, handlers: RealtimeHandlers): Promise<void> {
+    try {
+      const channel = await appwriteClient.getChannel(channelId);
+      handlers.onChannelUpdate(channel);
+      const recent = await appwriteClient.listRecentChat(channelId);
+      for (const msg of recent) handlers.onChatMessage(msg);
+      this.setStatus('connected');
+    } catch (err) {
+      this.setStatus('reconnecting');
+      handlers.onError((err as Error).message);
+    }
+  }
+
+  private async refreshPresenceCount(
+    channelId: string,
+    handlers: RealtimeHandlers
+  ): Promise<void> {
+    if (this.currentChannelId !== channelId) return;
+    try {
+      this.presenceCount = await appwriteClient.countPresence(channelId);
+      handlers.onPresenceChange(channelId, this.presenceCount);
+    } catch (err) {
+      console.warn('[Realtime] Presence refresh failed:', err);
+    }
   }
 }
 
-// Export singleton instance
-export const wsClient = new WebSocketClient();
+export const realtimeClient = new RealtimeClient();

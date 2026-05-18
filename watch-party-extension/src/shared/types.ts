@@ -1,40 +1,74 @@
 // ============================================
-// Core Data Types
+// Appwrite document base
 // ============================================
 
-export interface Show {
-  id: string;
-  videoId: string;
-  title: string;
-  thumbnail?: string;
-  duration: number; // seconds
-  startTime: string; // ISO 8601
-  endTime: string; // ISO 8601
-  recurring?: boolean;
-  dayOfWeek?: string;
+/**
+ * Fields Appwrite injects on every stored document. Our typed records
+ * extend this so the SDK's generic constraints (`T extends Models.Document`)
+ * accept them when used as `databases.getDocument<T>(...)`.
+ */
+export interface AppwriteDocument {
+  $id: string;
+  $sequence: string;
+  $collectionId: string;
+  $databaseId: string;
+  $createdAt: string;
+  $updatedAt: string;
+  $permissions: string[];
 }
 
-export interface Channel {
-  id: string;
+// ============================================
+// Channel + Playlist
+// ============================================
+
+export type ChannelState = 'playing' | 'paused' | 'stopped';
+export type ChannelVisibility = 'public' | 'private';
+
+/**
+ * The authoritative server-side channel document. Mirrors the Appwrite
+ * `channels` collection. Clients derive the playback clock from the
+ * timing fields below; see docs/PLAN.md §6.
+ */
+export interface ChannelDoc extends AppwriteDocument {
+  code: string;
   name: string;
-  description?: string;
-  schedule: Show[];
+  description: string | null;
+  visibility: ChannelVisibility;
+  hostUserId: string;
+  hostUsername: string;
+  state: ChannelState;
+  currentVideoIndex: number;
+  currentVideoStartedAt: string | null;
+  pauseAccumMs: number;
+  pausedAt: string | null;
+  viewerCount: number;
+  createdAt: string;
 }
 
-export interface ChatMessage {
-  id: string;
-  userId: string;
-  username: string;
-  message: string;
-  timestamp: string; // ISO 8601
-  showId: string;
+export interface PlaylistItem extends AppwriteDocument {
+  channelId: string;
+  position: number;
+  videoId: string;
+  videoTitle: string;
+  videoDuration: number | null;
+  addedAt: string;
 }
 
-export interface UserSession {
+// ============================================
+// Chat
+// ============================================
+
+export interface ChatMessage extends AppwriteDocument {
+  channelId: string;
   userId: string;
   username: string;
-  joinedAt: string;
+  text: string;
+  createdAt: string;
 }
+
+// ============================================
+// Local session (popup ↔ service worker)
+// ============================================
 
 export interface WatchPartySession {
   channelId: string;
@@ -50,15 +84,8 @@ export interface WatchPartySession {
 }
 
 // ============================================
-// Settings Types
+// Settings
 // ============================================
-
-export interface NotificationSettings {
-  enabled: boolean;
-  showStarting: boolean;
-  reminderMinutes: number; // 5, 10, 15
-  sound: boolean;
-}
 
 export interface AppearanceSettings {
   overlayPosition: 'right' | 'left';
@@ -72,26 +99,14 @@ export interface BehaviorSettings {
 }
 
 export interface Settings {
-  notifications: NotificationSettings;
   appearance: AppearanceSettings;
   behavior: BehaviorSettings;
 }
 
 // ============================================
-// State Types
+// Connection / sync state
 // ============================================
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'reconnecting' | 'disconnected';
 
 export type SyncStatus = 'synced' | 'slightly-behind' | 'out-of-sync';
-
-export interface OverlayState {
-  isVisible: boolean;
-  isCollapsed: boolean;
-  currentShow: Show | null;
-  messages: ChatMessage[];
-  viewerCount: number;
-  connectionStatus: ConnectionStatus;
-  syncStatus: SyncStatus;
-  currentTimestamp: number;
-}
